@@ -1,4 +1,6 @@
 Git info
+	git pull origin branch
+		Gets contents of remote branch and updates local copy to represent it
 	git clone url dir
 		Clones repo from url into dir. 
 		If no dir, adds directory with repo name to current dir.
