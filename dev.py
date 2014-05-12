@@ -42,7 +42,7 @@ class Game:
 
         # Chapters
         self.filmarray = ["National Treasure", "National Treasure 2", "Ghost Rider", "Ghost Rider 2", "Wicker Man", "Bangkok Dangerous", "Vampire's Kiss", "Season of the Witch", "Face/Off", "Sorcerer's Apprectice", "Gone in Sixty Seconds", "Con Air"]
-
+        self.filmbgarray = ["data/films/nationaltreasure.png","data/films/National Treasure 2.jpg", "data/films/Ghost Rider.jpg", "data/films/Ghost Rider 2.jpeg", "data/films/wicker man background.jpg", "data/films/bangkok dangerous background.jpg", "data/films/vampire's kiss background.jpg","data/films/Season of the Witch.jpg","data/films/face off.jpg","data/films/sorcerer's apprentice background.jpg","data/films/Gone in 60 Seconds.jpg","data/films/Con Air.jpg"]
         # Inteface
         self.interface = Interface(self.screen)
         self.bottomhudheight = 45
@@ -58,6 +58,7 @@ class Game:
             # Time
             clock.tick(FPS)
             curtime = self.gametick()
+            mousepos = pygame.mouse.get_pos()
             
             # Events
             for event in pygame.event.get():
@@ -65,18 +66,16 @@ class Game:
                     running = False
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if(self.GetState() == STATE_MAINMENU):
-                        mousepos = pygame.mouse.get_pos()
                         # Have they clicked on the start button
-                        if(self.startbutton.Clicked(mousepos)):
+                        if(self.startbutton.MouseOver(mousepos)):
                             # Change the game state to playing and update our curtime
                             curtime = self.ChangeState(STATE_PLAYING)
                         # Have they clicked on the quit button
-                        elif(self.quitbutton.Clicked(mousepos)):
+                        elif(self.quitbutton.MouseOver(mousepos)):
                             # Stop the loop
                             running = False
                     elif(self.GetState() == STATE_PLAYING and (curtime - self.cage.lastrage) > self.cage.ragedelay):
                         # Shooting mechanism
-                        mousepos = pygame.mouse.get_pos()
                         self.rage_sprites.add(Rage(self.cage, mousepos))
                         self.cage.lastrage = curtime
                         while(self.cage.rageamount > 1):
@@ -87,9 +86,8 @@ class Game:
                         else:
                             self.cage.image = pygame.transform.flip(self.cage.rageimg, True, False)
                     elif(self.GetState() == STATE_GAMEOVER):
-                        mousepos = pygame.mouse.get_pos()
                         # Have they clicked on the main menu button
-                        if(self.menubutton.Clicked(mousepos)):
+                        if(curtime >= 2000 and self.menubutton.MouseOver(mousepos)):
                             # Change the game state to the main menu and update our curtime
                             curtime = self.ChangeState(STATE_MAINMENU)
 
@@ -184,11 +182,21 @@ class Game:
                 self.screen.blit(text, textpos)
 
                 # Start button
+                if(self.startbutton.MouseOver(mousepos)):
+                    self.startbutton.bgcol = (150,0,0)
+                else:
+                    self.startbutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.startbutton)
+                if(self.quitbutton.MouseOver(mousepos)):
+                    self.quitbutton.bgcol = (150,0,0)
+                else:
+                    self.quitbutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.quitbutton)
             elif self.GetState() == STATE_PLAYING:
                 self.ClearScreen()
 
+                if(curtime - self.lastchapterchange <= 5000):
+                    self.screen.blit(self.filmbg,(0,0))
                 # Sprites
                 self.enemy_sprites.draw(self.screen)
                 self.superenemy_sprites.draw(self.screen)
@@ -214,6 +222,12 @@ class Game:
                 text = self.headerfont.render("Game Over.", 1, (255,255,0))
                 textpos = text.get_rect(centerx=self.width/2,centery=(self.height/2+36))
                 self.screen.blit(text,textpos)
+
+                # Button
+                if(self.menubutton.MouseOver(mousepos)):
+                    self.menubutton.bgcol = (150,0,0)
+                else:
+                    self.menubutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.menubutton)
                 
             pygame.display.flip()
@@ -255,17 +269,6 @@ class Game:
             self.quitbutton = Button(Rect(self.width/2 - 100, self.startbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Quit")
         elif newstate == STATE_PLAYING:
             self.LoadSprites()
-            self.ClearScreen()
-            text = self.headerfont.render("Nic Cage is releasing a new film!", 1, (255,0,0))
-            textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
-            self.screen.blit(text,textpos)
-            pygame.display.flip()
-            pygame.time.delay(2000)
-            poster = pygame.image.load("data/images/movie-1.png")
-            self.screen.blit(poster,(0,0))
-            pygame.display.flip()
-            pygame.time.delay(2000)
-                
             # Scoring
             self.score = 0
             self.lasttimescore = 0
@@ -278,13 +281,10 @@ class Game:
             self.supernumber = 0
             self.enemyspawnrate = 1500
 
-            # Theme
-            self.film = 0
-            self.filmtitle = "National Treasure"
-
-            # Chapter Number
-            self.curchapter = 1
+            # Chapters
             self.lastchapterchange = 0
+            self.month = 0
+            self.ChangeChapter()
         elif newstate == STATE_GAMEOVER:
             self.menubutton = Button(Rect(self.width/2 - 100, self.height/4 - 30, 200, 60), "Main Menu")
         else:
@@ -309,7 +309,7 @@ class Game:
         score = self.gamestatfont.render("Score: {:d}".format(self.score), 1, (255,0,0))
         scorepos = score.get_rect(left=5,top=5)
         # Month
-        month = self.gamestatfont.render ("Month: " + str(self.curchapter), 1, (255,0,0))
+        month = self.gamestatfont.render ("Month: " + str(self.month), 1, (255,0,0))
         monthpos = month.get_rect(left=5, centery=interfacebackground.centery)
         # Film
         film = self.gamestatfont.render (self.filmtitle, 1, (255,0,0))
@@ -323,11 +323,12 @@ class Game:
         self.screen.blit(film, filmpos)
         pygame.draw.rect(self.screen, (0,255,0), ragerect)
     def ChangeChapter(self):
-        self.curchapter+=1
-        self.filmtitle = self.filmarray[random.randint(0, (self.filmarray.__len__() - 1))]
-        self.filmarray.remove(self.filmtitle)
-        
-
+        self.curchapter = random.randint(0, (self.filmarray.__len__() - 1))
+        self.filmtitle = self.filmarray[self.curchapter]
+        self.filmbg = pygame.image.load(self.filmbgarray[self.curchapter])
+        del self.filmarray[self.curchapter]
+        del self.filmbgarray[self.curchapter]
+        self.month += 1
 # Cage (player) class
 class Cage(pygame.sprite.Sprite):
     def __init__(self, playablerect):
