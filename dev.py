@@ -25,6 +25,7 @@ STATE_GAMEOVER  = 2
 
 class Game:
     def __init__(self, width=WIDTH, height=HEIGHT):
+        random.randint(0,0)
         pygame.init()
         # Screen
         self.width = width
@@ -40,7 +41,7 @@ class Game:
         self.gamestatfont = pygame.font.Font(None, 24)
 
         # Chapters
-        self.filmarray = ["National Treasure 2", "Ghost Rider", "Ghost Rider 2", "Wicker Man", "Bangkok Dangerous", "Vampire's Kiss", "Season of the Witch", "Face/Off", "Sorcerer's Apprectice", "Gone in Sixty Seconds", "Con Air"]
+        self.filmarray = ["National Treasure", "National Treasure 2", "Ghost Rider", "Ghost Rider 2", "Wicker Man", "Bangkok Dangerous", "Vampire's Kiss", "Season of the Witch", "Face/Off", "Sorcerer's Apprectice", "Gone in Sixty Seconds", "Con Air"]
 
         # Inteface
         self.interface = Interface(self.screen)
@@ -117,7 +118,7 @@ class Game:
                     self.enemyspawnrate = 1500
 
                 # Powerup Creation
-                if((curtime - self.lastpoweruptime) > 1000):
+                if((curtime - self.lastpoweruptime) > 10000):
                     self.lastpoweruptime = curtime
                     self.powerup_sprites.add(PowerUp(self, playablearea))
 
@@ -166,18 +167,12 @@ class Game:
 
                 if((curtime - self.lastchapterchange) >= 11000):
                     self.lastchapterchange = curtime
-                    if(self.curchapter >= 12):
+                    # If the film array is empty (played all the chapters)
+                    if(not self.filmarray):
                         self.gameWon = True
-                        running = False
+                        curtime = self.ChangeState(STATE_GAMEOVER)
                     else:
-                        self.curchapter+=1
-                        self.filmtitle = self.filmarray[random.randint(0,(self.filmarray.__len__() - 1))]
-                        self.filmarray.remove(self.filmtitle)
-
-            
-                
-            
-            
+                        self.ChangeChapter()
             
             # Render stuff
 
@@ -193,6 +188,7 @@ class Game:
                 self.interface.RenderButton(self.quitbutton)
             elif self.GetState() == STATE_PLAYING:
                 self.ClearScreen()
+
                 # Sprites
                 self.enemy_sprites.draw(self.screen)
                 self.superenemy_sprites.draw(self.screen)
@@ -326,6 +322,11 @@ class Game:
         self.screen.blit(month, monthpos)
         self.screen.blit(film, filmpos)
         pygame.draw.rect(self.screen, (0,255,0), ragerect)
+    def ChangeChapter(self):
+        self.curchapter+=1
+        self.filmtitle = self.filmarray[random.randint(0, (self.filmarray.__len__() - 1))]
+        self.filmarray.remove(self.filmtitle)
+        
 
 # Cage (player) class
 class Cage(pygame.sprite.Sprite):
@@ -455,7 +456,7 @@ class Rage(pygame.sprite.Sprite):
         self.movex = self.movement * (DIFFX / DISTANCE)
         self.movey = self.movement * (DIFFY / DISTANCE)
 
-        if(cage.poweruptype == 3):
+        if(cage.poweruptype == 3 or cage.poweruptype == 5):
             if(cage.rageamount > 2 and cage.rageamount <= 4):
                 if(self.movey < 0 and self.movex < 0):
                     self.movex -= ((cage.rageamount - 1) * 0.3)
@@ -521,7 +522,6 @@ class Rage(pygame.sprite.Sprite):
            or(self.rect.right < playablerect.left)
            or(self.rect.bottom < playablerect.top)):
             spritegroup.remove(self)
-
 
 class PowerUp(pygame.sprite.Sprite):
 
@@ -591,8 +591,8 @@ class PowerUp(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.ragedelay = 1000
         self.length = 5000
-        self.rect.x = random.randint(playablerect.left, playablerect.right)
-        self.rect.y = random.randint(playablerect.top, playablerect.bottom)
+        self.rect.x = random.randint(playablerect.left, playablerect.right-self.rect.width)
+        self.rect.y = random.randint(playablerect.top, playablerect.bottom-self.rect.height)
 
 class Enemy(pygame.sprite.Sprite):
     
