@@ -8,76 +8,56 @@ if not pygame.font: print 'Warning, fonts disabled'
 if not pygame.mixer: print 'Warning, sound disabled'
 
 # Globals
+FPS = 60
 WIDTH = 640
 HEIGHT = 480
+STATE_MAINMENU  = 0
+STATE_PLAYING   = 1
+STATE_GAMEOVER  = 2
 
 class Game:
     def __init__(self, width=WIDTH, height=HEIGHT):
         pygame.init()
+        # Render stuff
         self.width = width
         self.height = height
         self.screen = pygame.display.set_mode((self.width, self.height))
-        
-        # Scoring
-        self.score = 0
-        self.lasttimescore = 0
-        self.gameWon = False
-
-        # Spawning
-        self.lastpoweruptime = 0
-        self.lastenemyspawn = 0
-        self.lastsuperenemyspawn = 0
-        self.supernumber = 0
-        self.enemyspawnrate = 1500
-
-        # Theme
-        self.film = 0
-        self.filmtitle = "National Treasure"
-        self.filmarray = ["National Treasure 2", "Ghost Rider", "Ghost Rider 2", "Wicker Man", "Bangkok Dangerous", "Vampire's Kiss", "Season of the Witch", "Face/Off", "Sorcerer's Apprectice", "Gone in Sixty Seconds", "Con Air"]
-
-        # Chapter Number
-        self.curchapter = 1
-        self.lastchapterchange = 0
-
-        # Interface
-        self.rageomfg = Rect(WIDTH - 125,HEIGHT-25,125,25)
-
-    def Loop(self):
-        self.LoadSprites()
+        #Background
         self.background = pygame.Surface(self.screen.get_size())
         self.background = self.background.convert()
         self.background.fill((0,0,0))
-        font = pygame.font.Font(None,36)
-        text = font.render("Nic Cage is releasing a new film!", 1, (255,0,0))
-        textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
-        self.screen.blit(text,textpos)
-        pygame.display.flip()
-        pygame.time.delay(2000)
-        poster = pygame.image.load("data/images/movie-1.png")
-        self.screen.blit(poster,(0,0))
-        pygame.display.flip()
-        pygame.time.delay(2000)
-        initialDelay = 5000
-        
 
+        # Fonts
+        self.headerfont = pygame.font.Font(None, 36)
+
+        # Chapters
+        self.filmarray = ["National Treasure 2", "Ghost Rider", "Ghost Rider 2", "Wicker Man", "Bangkok Dangerous", "Vampire's Kiss", "Season of the Witch", "Face/Off", "Sorcerer's Apprectice", "Gone in Sixty Seconds", "Con Air"]
+
+        # Start main menu
+        self.ChangeState(STATE_MAINMENU)
+
+    def Loop(self):
         pygame.key.set_repeat(500, 30)
-        clock = pygame.time.Clock()
-        
-        
+        clock = pygame.time.Clock()  
         running = True
         while running:
             # Time
-            clock.tick(60)
-            curtime = pygame.time.get_ticks() - initialDelay
-
-            
+            clock.tick(FPS)
+            curtime = self.gametick()
             
             # Events
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if((curtime - self.cage.lastrage) > self.cage.ragedelay):
+                    if(self.GetState() == STATE_MAINMENU):
+                        mousepos = pygame.mouse.get_pos()
+                        if((mousepos[0] >= self.startbutton.left and mousepos[0] <= self.startbutton.left+self.startbutton.width) and (mousepos[1] >= self.startbutton.top and mousepos[1] <= self.startbutton.top + self.startbutton.height)):
+                            self.ChangeState(STATE_PLAYING)
+                            curtime = self.gametick() # Need to reload the tick as it will have reset
+                        elif((mousepos[0] >= self.quitbutton.left and mousepos[0] <= self.quitbutton.left+self.quitbutton.width) and (mousepos[1] >= self.quitbutton.top and mousepos[1] <= self.quitbutton.top + self.quitbutton.height)):
+                            running = False
+                    elif(self.GetState() == STATE_PLAYING and (curtime - self.cage.lastrage) > self.cage.ragedelay):
                         mousepos = pygame.mouse.get_pos()
                         self.rage_sprites.add(Rage(self.cage, mousepos))
                         self.cage.lastrage = curtime
@@ -85,83 +65,89 @@ class Game:
                             self.cage.image = self.cage.rageimg
                         else:
                             self.cage.image = pygame.transform.flip(self.cage.rageimg, True, False)
+                    elif(self.GetState() == STATE_GAMEOVER):
+                        mousepos = pygame.mouse.get_pos()
+                        if((mousepos[0] >= self.menubutton.left and mousepos[0] <= self.menubutton.left+self.startbutton.width) and (mousepos[1] >= self.menubutton.top and mousepos[1] <= self.menubutton.top + self.startbutton.height)):
+                            self.ChangeState(STATE_MAINMENU)
+                            curtime = self.gametick() # Need to reload the tick as it will have reset
 
-            # De-Rage Cage
-            if((curtime - self.cage.lastrage) > 1000):
-                self.cage.image = self.cage.cageimg
-            
-            # Enemy Creation
-            if((curtime - self.lastenemyspawn) > self.enemyspawnrate):
-                self.lastenemyspawn = curtime
-                self.enemy_sprites.add(Enemy())
+            if(self.GetState() == STATE_PLAYING):
+                # De-Rage Cage
+                if((curtime - self.cage.lastrage) > 1000):
+                    self.cage.image = self.cage.cageimg
+                
+                # Enemy Creation
+                if((curtime - self.lastenemyspawn) > self.enemyspawnrate):
+                    self.lastenemyspawn = curtime
+                    self.enemy_sprites.add(Enemy())
 
-            # Super Enemy Creation
-            if((curtime - self.lastsuperenemyspawn) > 15000):
-                self.lastsuperenemyspawn = curtime
-                self.superenemy_sprites.add(SuperEnemy())
-                self.supernumber += 1
+                # Super Enemy Creation
+                if((curtime - self.lastsuperenemyspawn) > 15000):
+                    self.lastsuperenemyspawn = curtime
+                    self.superenemy_sprites.add(SuperEnemy())
+                    self.supernumber += 1
 
-            # Super Enemy Changes
-            if(self.supernumber >= 1):
-                self.enemyspawnrate = 750
-            else:
-                self.enemyspawnrate = 1500
+                # Super Enemy Changes
+                if(self.supernumber >= 1):
+                    self.enemyspawnrate = 750
+                else:
+                    self.enemyspawnrate = 1500
 
-            # Powerup Creation
-            if((curtime - self.lastpoweruptime) > 10000):
-                self.lastpoweruptime = curtime
-                self.powerup_sprites.add(PowerUp())
+                # Powerup Creation
+                if((curtime - self.lastpoweruptime) > 10000):
+                    self.lastpoweruptime = curtime
+                    self.powerup_sprites.add(PowerUp())
 
-            # Movement stuff
-            self.cage.move(key.get_pressed())
-            self.enemy_sprites.update(self.cage)
-            self.rage_sprites.update(self.rage_sprites)
-            self.superenemy_sprites.update(self.cage)
+                # Movement stuff
+                self.cage.move(key.get_pressed())
+                self.enemy_sprites.update(self.cage)
+                self.rage_sprites.update(self.rage_sprites)
+                self.superenemy_sprites.update(self.cage)
 
-            # Collision detection
-            # Enemy collides with cage
-            collidelist = pygame.sprite.spritecollide(self.cage,self.enemy_sprites,False)
-            if collidelist:
-                if pygame.font:
-                    running = False
-            # Enemy collides with bullet
-            collidelist = pygame.sprite.groupcollide(self.enemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
-            if collidelist:
+                # Collision detection
+                # Enemy collides with cage
+                collidelist = pygame.sprite.spritecollide(self.cage,self.enemy_sprites,False)
+                if collidelist:
+                    self.ChangeState(STATE_GAMEOVER)
+                    curtime = self.gametick()
+                # Enemy collides with bullet
+                collidelist = pygame.sprite.groupcollide(self.enemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
+                if collidelist:
                     self.score += (5*len(collidelist))
-            # Super Enemy collides with bullet
-            collidelist = pygame.sprite.groupcollide(self.superenemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
-            if collidelist:
+                # Super Enemy collides with bullet
+                collidelist = pygame.sprite.groupcollide(self.superenemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
+                if collidelist:
                     self.score += (10*len(collidelist))
                     self.supernumber -= 1
-            # Cage Collides with powerup
-            collidelist = pygame.sprite.spritecollide(self.cage,self.powerup_sprites,True)
-            if collidelist:
-                self.cage.powerupgot = curtime
-                self.cage.powerupend = curtime + collidelist[0].length
-                self.cage.ragedelay = collidelist[0].ragedelay
-                self.cage.gothroughpowerup = False
-            elif (curtime >= self.cage.powerupend and self.cage.powerupend != 0):
-                self.cage.ragedelay = self.cage.defaultdelay
-                self.cage.powerupend = 0
-                self.cage.gothroughpowerup = True
-            # Scoring
+                # Cage Collides with powerup
+                collidelist = pygame.sprite.spritecollide(self.cage,self.powerup_sprites,True)
+                if collidelist:
+                    self.cage.powerupgot = curtime
+                    self.cage.powerupend = curtime + collidelist[0].length
+                    self.cage.ragedelay = collidelist[0].ragedelay
+                    self.cage.gothroughpowerup = False
+                elif (curtime >= self.cage.powerupend and self.cage.powerupend != 0):
+                    self.cage.ragedelay = self.cage.defaultdelay
+                    self.cage.powerupend = 0
+                    self.cage.gothroughpowerup = True
+                # Scoring
 
-            if((curtime - self.lasttimescore) >= 1000):
-                self.lasttimescore = curtime
-                self.score+=1
+                if((curtime - self.lasttimescore) >= 1000):
+                    self.lasttimescore = curtime
+                    self.score+=1
 
 
-            # Chapter Changes
+                # Chapter Changes
 
-            if((curtime - self.lastchapterchange) >= 10000):
-                self.lastchapterchange = curtime
-                if(self.curchapter >= 12):
-                    self.gameWon = True
-                    running = False
-                else:
-                    self.curchapter+=1
-                    self.filmtitle = self.filmarray[random.randint(0,(self.filmarray.__len__() - 1))]
-                    self.filmarray.remove(self.filmtitle)
+                if((curtime - self.lastchapterchange) >= 10000):
+                    self.lastchapterchange = curtime
+                    if(self.curchapter >= 12):
+                        self.gameWon = True
+                        running = False
+                    else:
+                        self.curchapter+=1
+                        self.filmtitle = self.filmarray[random.randint(0,(self.filmarray.__len__() - 1))]
+                        self.filmarray.remove(self.filmtitle)
 
             
                 
@@ -169,61 +155,65 @@ class Game:
             
             
             # Render stuff
-            self.screen.blit(self.background, (0, 0))
 
-            
-
-            # Sprites
-            self.enemy_sprites.draw(self.screen)
-            self.superenemy_sprites.draw(self.screen)
-            self.cage_sprite.draw(self.screen)
-            self.rage_sprites.draw(self.screen)
-            self.powerup_sprites.draw(self.screen)
-
-            if (curtime < 2000):
-                text = font.render("Here come the reviews!", 1, (255,0,0))
-                textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
+            if self.GetState() == STATE_MAINMENU:
+                self.ClearScreen()
+                # Title
+                text = self.headerfont.render("Nick Cage Film Battle Royale", 1, (255, 0, 0))
+                textpos = text.get_rect(centerx=self.width/2,centery=self.height/8)
                 self.screen.blit(text,textpos)
-                
-            # Rage-o-meter
-            tempwidth = (float(curtime-self.cage.lastrage)/self.cage.ragedelay) * 125
-            if (tempwidth > 125):
-                tempwidth = 125
-            
-            self.rageomfg.width = tempwidth
-            
-            pygame.draw.rect(self.screen,(255,0,0),self.rageomfg)
-            
-            # Text
-            if pygame.font:
-                font = pygame.font.Font(None,36)
-                text = font.render("Score: {:d}".format(self.score), 1, (255,0,0))
-                textpos = text.get_rect(centerx=self.width/2)
-                self.screen.blit(text,textpos)
-                text2 = font.render ("Current Film: " + self.filmtitle, 1, (255,0,0))
-                textpos = text.get_rect(centerx=self.width/8,centery=(HEIGHT - 20))
-                self.screen.blit(text2,textpos)
-                text3 = font.render ("Current Month: " + str(self.curchapter), 1, (255,0,0))
-                textpos = text.get_rect(centerx=self.width/8, centery = (HEIGHT - 100))
-                self.screen.blit(text3,textpos)
-                
-                if not running:
-                    if (self.gameWon):
-                        font = pygame.font.Font(None,36)
-                        text = font.render("THE RAGE SAVED THE CAGE! WELL DONE!", 1, (255,255,0))
-                        textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
-                        self.screen.blit(text,textpos)
-                    else:
-                        font = pygame.font.Font(None,36)
-                        text = font.render("THE RAGE COULD NOT SAVE THE CAGE!", 1, (255,255,0))
-                        textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
-                        self.screen.blit(text,textpos)
-                    text = font.render("Game Over.", 1, (255,255,0))
-                    textpos = text.get_rect(centerx=self.width/2,centery=(self.height/2+36))
+
+                # Start button
+                self.RenderButton(self.startbutton, self.startbuttonmsg)
+                self.RenderButton(self.quitbutton, self.quitbuttonmsg)
+            elif self.GetState() == STATE_PLAYING:
+                self.ClearScreen()
+                # Sprites
+                self.enemy_sprites.draw(self.screen)
+                self.superenemy_sprites.draw(self.screen)
+                self.cage_sprite.draw(self.screen)
+                self.rage_sprites.draw(self.screen)
+                self.powerup_sprites.draw(self.screen)
+
+                if (curtime < 2000):
+                    text = self.headerfont.render("Here come the reviews!", 1, (255,0,0))
+                    textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
                     self.screen.blit(text,textpos)
                     
+                # Rage-o-meter
+                tempwidth = (float(curtime-self.cage.lastrage)/self.cage.ragedelay) * 125
+                if (tempwidth > 125):
+                    tempwidth = 125
+                
+                self.rageomfg.width = tempwidth
+                
+                pygame.draw.rect(self.screen,(255,0,0),self.rageomfg)
+                
+                # Text
+                text = self.headerfont.render("Score: {:d}".format(self.score), 1, (255,0,0))
+                textpos = text.get_rect(centerx=self.width/2)
+                self.screen.blit(text,textpos)
+                text2 = self.headerfont.render ("Current Film: " + self.filmtitle, 1, (255,0,0))
+                textpos = text.get_rect(centerx=self.width/8,centery=(HEIGHT - 20))
+                self.screen.blit(text2,textpos)
+                text3 = self.headerfont.render ("Current Month: " + str(self.curchapter), 1, (255,0,0))
+                textpos = text.get_rect(centerx=self.width/8, centery = (HEIGHT - 100))
+                self.screen.blit(text3,textpos)
+            elif self.GetState() == STATE_GAMEOVER:
+                if (self.gameWon):
+                    text = self.headerfont.render("THE RAGE SAVED THE CAGE! WELL DONE!", 1, (255,255,0))
+                    textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
+                    self.screen.blit(text,textpos)
+                else:
+                    text = self.headerfont.render("THE RAGE COULD NOT SAVE THE CAGE!", 1, (255,255,0))
+                    textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
+                    self.screen.blit(text,textpos)
+                text = self.headerfont.render("Game Over.", 1, (255,255,0))
+                textpos = text.get_rect(centerx=self.width/2,centery=(self.height/2+36))
+                self.screen.blit(text,textpos)
+                self.RenderButton(self.menubutton,self.menubuttonmsg)
+                
             pygame.display.flip()
-        pygame.time.delay(3000)
         pygame.quit()
 
     def LoadSprites(self):
@@ -233,6 +223,77 @@ class Game:
         self.enemy_sprites = pygame.sprite.Group()
         self.rage_sprites = pygame.sprite.Group()
         self.powerup_sprites = pygame.sprite.Group()
+
+    # Returns the time since the start of the current state
+    def gametick(self):
+        return pygame.time.get_ticks() - self.statestarttime
+
+    # Resets the game tick to start from 0 again (used when changing states)
+    def gametickstart(self):
+        self.statestarttime = pygame.time.get_ticks()
+
+    # Returns the current game state
+    def GetState(self):
+        return self.gamestate
+
+    # Sets the current game state to input and runs necessary init code
+    def ChangeState(self, newstate):
+        if newstate == STATE_MAINMENU:
+            self.startbutton = Rect(self.width/2 - 100, self.height/2 - 30, 200, 60)
+            self.startbuttonmsg = "Start"
+            self.quitbutton = Rect(self.width/2 - 100, self.height/2 + 40, 200, 60)
+            self.quitbuttonmsg = "Quit"
+        elif newstate == STATE_PLAYING:
+            self.LoadSprites()
+            self.ClearScreen()
+            text = self.headerfont.render("Nic Cage is releasing a new film!", 1, (255,0,0))
+            textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
+            self.screen.blit(text,textpos)
+            pygame.display.flip()
+            pygame.time.delay(2000)
+            poster = pygame.image.load("data/images/movie-1.png")
+            self.screen.blit(poster,(0,0))
+            pygame.display.flip()
+            pygame.time.delay(2000)
+                
+            # Scoring
+            self.score = 0
+            self.lasttimescore = 0
+            self.gameWon = False
+
+            # Spawning
+            self.lastpoweruptime = 0
+            self.lastenemyspawn = 0
+            self.lastsuperenemyspawn = 0
+            self.supernumber = 0
+            self.enemyspawnrate = 1500
+
+            # Theme
+            self.film = 0
+            self.filmtitle = "National Treasure"
+
+            # Chapter Number
+            self.curchapter = 1
+            self.lastchapterchange = 0
+
+            # Interface
+            self.rageomfg = Rect(WIDTH - 125,HEIGHT-25,125,25)
+        elif newstate == STATE_GAMEOVER:
+            self.menubutton = Rect(self.width/2 - 100, self.height/4 - 30, 200, 60)
+            self.menubuttonmsg = "Main Menu"
+        else:
+            True # TODO: FILL THIS IN
+
+        # Now that we've initialized the state, we can update the game's state variable and reset the game tick
+        self.gamestate = newstate
+        self.gametickstart()
+    def ClearScreen(self):
+        self.screen.blit(self.background, (0, 0))
+    def RenderButton(self, rect, message):
+        pygame.draw.rect(self.screen, (255,0,0), rect)
+        text = self.headerfont.render(message, 1, (0,0,0))
+        textpos = text.get_rect(centerx=rect.left+(rect.width/2),centery=rect.top+(rect.height/2))
+        self.screen.blit(text,textpos)
 
 class Cage(pygame.sprite.Sprite):
     def __init__(self):
@@ -363,6 +424,8 @@ class Enemy(pygame.sprite.Sprite):
             startY = random.randint(0,HEIGHT)
         self.rect.x = startX
         self.rect.y = startY
+        self.accuratex = startX
+        self.accuratey = startY
         self.movement = 2
         
     def update(self, cage):
