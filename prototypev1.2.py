@@ -78,6 +78,9 @@ class Game:
                         mousepos = pygame.mouse.get_pos()
                         self.rage_sprites.add(Rage(self.cage, mousepos))
                         self.cage.lastrage = curtime
+                        while(self.cage.rageamount > 1):
+                            self.rage_sprites.add(Rage(self.cage, mousepos))
+                            self.cage.rageamount -= 1
                         if(mousepos[0] > self.cage.rect.x):
                             self.cage.image = self.cage.rageimg
                         else:
@@ -114,9 +117,9 @@ class Game:
                     self.enemyspawnrate = 1500
 
                 # Powerup Creation
-                if((curtime - self.lastpoweruptime) > 10000):
+                if((curtime - self.lastpoweruptime) > 1000):
                     self.lastpoweruptime = curtime
-                    self.powerup_sprites.add(PowerUp(playablearea))
+                    self.powerup_sprites.add(PowerUp(self, playablearea))
 
                 # Movement stuff
                 self.cage.move(key.get_pressed(), playablearea)
@@ -145,11 +148,13 @@ class Game:
                     self.cage.powerupgot = curtime
                     self.cage.powerupend = curtime + collidelist[0].length
                     self.cage.ragedelay = collidelist[0].ragedelay
-                    self.cage.gothroughpowerup = False
+                    self.cage.gothroughpowerup = collidelist[0].gothroughpowerup
+                    self.cage.poweruptype = collidelist[0].poweruptype
                 elif (curtime >= self.cage.powerupend and self.cage.powerupend != 0):
                     self.cage.ragedelay = self.cage.defaultdelay
                     self.cage.powerupend = 0
                     self.cage.gothroughpowerup = True
+                    self.cage.poweruptype = 0
                 # Scoring
 
                 if((curtime - self.lasttimescore) >= 1000):
@@ -159,7 +164,7 @@ class Game:
 
                 # Chapter Changes
 
-                if((curtime - self.lastchapterchange) >= 10000):
+                if((curtime - self.lastchapterchange) >= 11000):
                     self.lastchapterchange = curtime
                     if(self.curchapter >= 12):
                         self.gameWon = True
@@ -345,8 +350,10 @@ class Cage(pygame.sprite.Sprite):
         # Attack
         self.lastrage = 0
         self.ragedelay = 2000
+        self.rageamount = 1
         self.defaultdelay = self.ragedelay
         self.gothroughpowerup = True
+        self.poweruptype = 0
 
     def move(self, keys_pressed, playablerect):
         # Used to track how much we should move in x and y
@@ -377,7 +384,53 @@ class Rage(pygame.sprite.Sprite):
     def __init__(self, cage, mousepos):
         # Create rage
         pygame.sprite.Sprite.__init__(self)
-        self.base_image = pygame.image.load('data/images/rage-small.png')
+        if(cage.rageamount == 1):
+            if(cage.poweruptype == 0):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+            
+            elif(cage.poweruptype == 1):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+                
+            elif(cage.poweruptype == 2):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+                
+            elif(cage.poweruptype == 3):
+                self.base_image = pygame.image.load('data/images/rage-tiny.png')
+                cage.rageamount = 6
+                            
+            elif(cage.poweruptype == 4):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+                
+            elif(cage.poweruptype == 5):
+                self.base_image = pygame.image.load('data/images/rage-tiny.png')
+                cage.rageamount = 10 
+                
+            elif(cage.poweruptype == 6):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+                
+            elif(cage.poweruptype == 7):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+                
+            elif(cage.poweruptype == 8):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+                
+            elif(cage.poweruptype == 9):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+                
+            elif(cage.poweruptype == 10):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+                
+            elif(cage.poweruptype == 11):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+                
+            elif(cage.poweruptype == 12):
+                self.base_image = pygame.image.load('data/images/rage-small.png')
+        else:
+            if(cage.poweruptype == 3):
+                self.base_image = pygame.image.load('data/images/rage-tiny.png')
+            if(cage.poweruptype == 5):
+                self.base_image = pygame.image.load('data/images/rage-tiny.png')
+            
         self.image = self.base_image
         self.rect = self.image.get_rect()
 
@@ -392,17 +445,67 @@ class Rage(pygame.sprite.Sprite):
         DIFFX = self.rect.x - mousepos[0]
         DIFFY = self.rect.y - mousepos[1]
         DISTANCE = math.sqrt((DIFFY**2)+(DIFFX**2))
+        if(cage.poweruptype == 5):
+            if(cage.rageamount > 1 and cage.rageamount <= 6):
+                DIFFX -= ((cage.rageamount - 3) * (DIFFX * 0.25))
+                DIFFY -= ((cage.rageamount - 3) * (DIFFY * 0.25))
+            if(cage.rageamount > 6 and cage.rageamount <= 10):
+                DIFFX += ((cage.rageamount - 7) * (DIFFX * 0.25))
+                DIFFY += ((cage.rageamount - 7) * (DIFFY * 0.25))
         self.movex = self.movement * (DIFFX / DISTANCE)
         self.movey = self.movement * (DIFFY / DISTANCE)
 
+        if(cage.poweruptype == 3):
+            if(cage.rageamount > 2 and cage.rageamount <= 4):
+                if(self.movey < 0 and self.movex < 0):
+                    self.movex -= ((cage.rageamount - 1) * 0.3)
+                    self.movey += ((cage.rageamount - 1) * 0.5)
+                elif(self.movey > 0 and self.movex > 0):
+                    self.movex += ((cage.rageamount - 1) * 0.3)
+                    self.movey -= ((cage.rageamount - 1) * 0.5)
+                else:
+                    self.movex += ((cage.rageamount - 1) * 0.3)
+                    self.movey += ((cage.rageamount - 1) * 0.5)
+            if(cage.rageamount > 4 and cage.rageamount <= 6):
+                if(self.movey < 0 or self.movex < 0):
+                    self.movex += ((cage.rageamount - 3) * 0.3)
+                    self.movey -= ((cage.rageamount - 3) * 0.5)
+                elif(self.movey > 0 and self.movex > 0):
+                    self.movex -= ((cage.rageamount - 3) * 0.3)
+                    self.movey += ((cage.rageamount - 3) * 0.5)
+                else:
+                    self.movex -= ((cage.rageamount - 3) * 0.3)
+                    self.movey -= ((cage.rageamount - 3) * 0.5)
+        
         # Rotation
-        rotate = math.acos((DIFFY/DISTANCE))
+        if(DIFFY/DISTANCE > 1):
+            rotate = math.acos(1)
+        elif(DIFFY/DISTANCE < -1):
+            rotate = math.acos(-1)
+        else:
+            rotate = math.acos((DIFFY/DISTANCE))
         rotate = (rotate / math.pi) * 180.0
         if(DIFFX > 0):
             if(DIFFY <= 0):
                 rotate = (180 - rotate) + 180
             else:
                 rotate = 360 - rotate
+        if(cage.poweruptype == 3):
+            if(cage.rageamount > 2 and cage.rageamount <= 4):
+                if(self.movex > 0 and self.movey < 0):
+                    rotate += ((cage.rageamount-3) * 10)
+                else:
+                    rotate -= ((cage.rageamount-3) * 10)
+            if(cage.rageamount > 4 and cage.rageamount <= 6):
+                if(self.movex > 0 and self.movey < 0):
+                    rotate -= ((cage.rageamount-3) * 10)
+                else:
+                    rotate += ((cage.rageamount-3) * 10)
+        if(cage.poweruptype == 5):
+            if(cage.rageamount > 1 and cage.rageamount <= 6):
+                rotate -= ((cage.rageamount-1) * 18)
+            if(cage.rageamount > 6 and cage.rageamount <= 10):
+                rotate += ((cage.rageamount-3) * 18)
 
         self.image = pygame.transform.rotate(self.image, -rotate)
 
@@ -422,9 +525,69 @@ class Rage(pygame.sprite.Sprite):
 
 class PowerUp(pygame.sprite.Sprite):
 
-    def __init__(self, playablerect):
+    def __init__(self, main, playablerect):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load('data/images/powerup.png')
+        uniquepower = random.randint(1,3)
+        self.gothroughpowerup = True
+        self.ragedelay = 2000
+        if(uniquepower == 3):
+            if(main.filmtitle == "National Treasure"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 1000
+                self.poweruptype = 1
+            elif(main.filmtitle == "National Treasure 2"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 500
+                self.poweruptype = 2
+            elif(main.filmtitle == "Ghost Rider"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.gothroughpowerup = False
+                self.ragedelay = 2000
+                self.poweruptype = 3
+            elif(main.filmtitle == "Ghost Rider 2"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.gothroughpowerup = False
+                self.ragedelay = 1500
+                self.poweruptype = 4
+            elif(main.filmtitle == "Wicker Man"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 1000
+                self.poweruptype = 5
+            elif(main.filmtitle == "Bangkok Dangerous"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 1000
+                self.poweruptype = 6
+            elif(main.filmtitle == "Vampire's Kiss"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 1000
+                self.poweruptype = 7
+            elif(main.filmtitle == "Season of the Witch"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 1000
+                self.poweruptype = 8
+            elif(main.filmtitle == "Face/Off"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 1000
+                self.poweruptype = 9
+            elif(main.filmtitle == "Sorcerer's Apprectice"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 1000
+                self.poweruptype = 10
+            elif(main.filmtitle == "Con Air"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 1000
+                self.poweruptype = 11
+            elif(main.filmtitle == "Gone in Sixty Seconds"):
+                self.image = pygame.image.load('data/images/powerup.png')
+                self.ragedelay = 1000
+                self.poweruptype = 12
+        else:
+            self.image = pygame.image.load('data/images/powerup.png')
+            self.ragedelay = 1000
+            self.gothroughpowerup = True
+            self.poweruptype = 0
+
+        # 
         self.rect = self.image.get_rect()
         self.ragedelay = 1000
         self.length = 5000
@@ -496,7 +659,8 @@ class SuperEnemy(pygame.sprite.Sprite):
             startY = random.randint(playablerect.top, playablerect.bottom)
         self.rect.x = startX
         self.rect.y = startY
-        self.movement = 2
+        self.movement = 1
+        
     def update(self,cage):
         DIFFX = cage.rect.x - self.rect.x
         DIFFY = cage.rect.y - self.rect.y
