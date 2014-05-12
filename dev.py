@@ -40,9 +40,6 @@ class Game:
         self.headerfont = pygame.font.Font(None, 36)
         self.gamestatfont = pygame.font.Font(None, 24)
 
-        # Chapters
-        self.filmarray = ["National Treasure", "National Treasure 2", "Ghost Rider", "Ghost Rider 2", "Wicker Man", "Bangkok Dangerous", "Vampire's Kiss", "Season of the Witch", "Face/Off", "Sorcerer's Apprectice", "Gone in Sixty Seconds", "Con Air"]
-        self.filmbgarray = ["data/films/nationaltreasure.png","data/films/National Treasure 2.jpg", "data/films/Ghost Rider.jpg", "data/films/Ghost Rider 2.jpeg", "data/films/wicker man background.jpg", "data/films/bangkok dangerous background.jpg", "data/films/vampire's kiss background.jpg","data/films/Season of the Witch.jpg","data/films/face off.jpg","data/films/sorcerer's apprentice background.jpg","data/films/Gone in 60 Seconds.jpg","data/films/Con Air.jpg"]
         # Inteface
         self.interface = Interface(self.screen)
         self.bottomhudheight = 45
@@ -87,9 +84,13 @@ class Game:
                             self.cage.image = pygame.transform.flip(self.cage.rageimg, True, False)
                     elif(self.GetState() == STATE_GAMEOVER):
                         # Have they clicked on the main menu button
-                        if(curtime >= 2000 and self.menubutton.MouseOver(mousepos)):
-                            # Change the game state to the main menu and update our curtime
-                            curtime = self.ChangeState(STATE_MAINMENU)
+                        if(curtime >= 2000):
+                            if self.menubutton.MouseOver(mousepos):
+                                # Change the game state to the main menu and update our curtime
+                                curtime = self.ChangeState(STATE_MAINMENU)
+                            elif self.retrybutton.MouseOver(mousepos):
+                                # Change the game state to playing again and update curtime
+                                curtime = self.ChangeState(STATE_PLAYING)
 
             if(self.GetState() == STATE_PLAYING):
                 playablearea = self.GetPlayableRect()
@@ -163,7 +164,7 @@ class Game:
 
                 # Chapter Changes
 
-                if((curtime - self.lastchapterchange) >= 11000):
+                if((curtime - self.lastchapterchange) >= 30000):
                     self.lastchapterchange = curtime
                     # If the film array is empty (played all the chapters)
                     if(not self.filmarray):
@@ -195,8 +196,7 @@ class Game:
             elif self.GetState() == STATE_PLAYING:
                 self.ClearScreen()
 
-                if(curtime - self.lastchapterchange <= 5000):
-                    self.screen.blit(self.filmbg,(0,0))
+                self.screen.blit(self.filmbg,(0,0))
                 # Sprites
                 self.enemy_sprites.draw(self.screen)
                 self.superenemy_sprites.draw(self.screen)
@@ -229,6 +229,11 @@ class Game:
                 else:
                     self.menubutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.menubutton)
+                if(self.retrybutton.MouseOver(mousepos)):
+                    self.retrybutton.bgcol = (150,0,0)
+                else:
+                    self.retrybutton.bgcol = (255,0,0)
+                self.interface.RenderButton(self.retrybutton)
                 
             pygame.display.flip()
         pygame.quit()
@@ -282,11 +287,14 @@ class Game:
             self.enemyspawnrate = 1500
 
             # Chapters
+            self.filmarray = ["National Treasure", "National Treasure 2", "Ghost Rider", "Ghost Rider 2", "Wicker Man", "Bangkok Dangerous", "Vampire's Kiss", "Season of the Witch", "Face/Off", "Sorcerer's Apprectice", "Gone in Sixty Seconds", "Con Air"]
+            self.filmbgarray = ["data/films/nationaltreasure.png","data/films/National Treasure 2.jpg", "data/films/Ghost Rider.jpg", "data/films/Ghost Rider 2.jpeg", "data/films/wicker man background.jpg", "data/films/bangkok dangerous background.jpg", "data/films/vampire's kiss background.jpg","data/films/Season of the Witch.jpg","data/films/face off.jpg","data/films/sorcerer's apprentice background.jpg","data/films/Gone in 60 Seconds.jpg","data/films/Con Air.png"]
             self.lastchapterchange = 0
             self.month = 0
             self.ChangeChapter()
         elif newstate == STATE_GAMEOVER:
             self.menubutton = Button(Rect(self.width/2 - 100, self.height/4 - 30, 200, 60), "Main Menu")
+            self.retrybutton = Button(Rect(self.width/2 - 100, self.menubutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Retry")
         else:
             return self.gametick()
 
