@@ -36,6 +36,7 @@ class Enemy(pygame.sprite.Sprite):
         self.accuratey = startY
         
         # Enemy stats
+        self.health = enemytype.health
         self.movement = enemytype.movement
 
         # Store update function
@@ -138,11 +139,19 @@ def YoutubeReviewerUpdate(self, game):
 
 
 class EnemyType:
-    def __init__(self, name="Normal", movement=2, spawnrate=1500, image='data/images/enemy-small.png', initfunc=False, updatefunc=DefaultEnemyUpdate):
+    def __init__(self, name="Normal", health=1, movement=2, spawnrate=3000, image='data/images/enemy-small.png', initfunc=False, updatefunc=DefaultEnemyUpdate):
         self.name = name
+        self.health = health
         self.movement = movement
         self.spawnrate = spawnrate
         self.lastspawn = 0
         self.image = pygame.image.load(image)
         self.initfunc = initfunc
         self.updatefunc = updatefunc
+
+def LoadEnemyTypes():
+    enemytypes = {}
+    enemytypes['Tiny Enemy'] = EnemyType('Tiny Enemy', 1, 1, 0, 'data/images/enemy-tiny.png')
+    enemytypes['Youtube Reviewer'] = EnemyType('Youtube Reviewer', 3, 0.5, 15000, 'data/images/youtube-logo.png', YoutubeReviewerInit, YoutubeReviewerUpdate)
+    enemytypes['Film Critic'] = EnemyType('Film Critic', 2, 1, 6000, 'data/images/enemy.png')
+    return enemytypes
