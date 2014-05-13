@@ -132,7 +132,7 @@ def YoutubeReviewerUpdate(self, game):
     self.rect.y = int(self.accuratey)
 
     # Super enemies spawn other enemies when fully inside the screen
-    if(playablerect.contains(self.rect) and game.gametick - self.lastenemyspawn > game.enemyspawnrate * 2):
+    if(playablerect.contains(self.rect) and game.gametick - self.lastenemyspawn > game.defaultenemy.spawnrate * 2):
         self.lastenemyspawn = game.gametick
         game.enemy_sprites.add(Enemy(game.enemytypes['Tiny Enemy'], self.rect))
 

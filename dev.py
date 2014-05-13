@@ -341,8 +341,8 @@ class Game:
                     self.rage_sprites.add(Rage(self.cage, enemy, mousepos))
                 self.cage.rageexplode = False
                 self.cage.gothroughpowerup = False
-                self.cage.explosiondelay = curtime
-        if ((curtime - self.cage.explosiondelay) > 1000 and self.cage.explosionactivate):
+                self.cage.explosiondelay = self.gametick
+        if ((self.gametick - self.cage.explosiondelay) > 1000 and self.cage.explosionactivate):
             self.cage.manualpowerend = True
 
             
@@ -361,7 +361,7 @@ class Game:
             self.cage.poweruptype = collidelist[0].poweruptype
             self.cage.rageexplode = collidelist[0].rageexplode
             self.cage.currentdescription = self.cage.powerdescription
-        elif (curtime >= self.cage.powerupend and self.cage.powerupend != 0 or (self.cage.manualpowerend)):
+        elif (self.gametick >= self.cage.powerupend and self.cage.powerupend != 0 or (self.cage.manualpowerend)):
             self.manualpowerend = False
             self.cage.ragedelay = self.cage.defaultdelay
             self.cage.powerupend = 0
