@@ -1,10 +1,13 @@
 # REMOVE DEBUG code (marked with DEBUG)
 #!/usr/bin/env python
 # Core stuff
-import sys, random, math
+import os, sys, random, math
 # Pygame
 import pygame
 from pygame import *
+from ctypes import windll
+os.environ['SDL_VIDEO_CENTERED'] = '1'
+
 
 if not pygame.font:
     print 'Warning, fonts disabled'
@@ -29,10 +32,13 @@ STATE_HELP      = 3
 class Game:
     def __init__(self, width=WIDTH, height=HEIGHT):
         pygame.init()
+        SetWindowPos = windll.user32.SetWindowPos
         # Screen
         self.width = width
         self.height = height
         self.screen = pygame.display.set_mode((self.width, self.height))
+        SetWindowPos(pygame.display.get_wm_info()['window'], -1, 0, 0, 0, 0, 0x0001)
+        
         
         # Background
         self.background = pygame.Surface(self.screen.get_size())
@@ -415,7 +421,7 @@ class Game:
             if self.cage.rageexplode:
                 self.cage.explosionactivate = True
                 for enemy, ragelist in collidelist.items():
-                    self.rage_sprites.add(Rage(self.cage, enemy, mousepos))
+                    self.rage_sprites.add(Rage(self.cage, enemy, [enemy.rect.centerx, enemy.rect.centery]))
                 self.cage.rageexplode = False
                 self.cage.gothroughpowerup = False
                 self.cage.explosiondelay = self.gametick
@@ -490,16 +496,16 @@ class Cage(pygame.sprite.Sprite):
         ymove = 0
         
         # Previously pressed keys still held down
-        if(keys_pressed[pygame.K_RIGHT]):
+        if(keys_pressed[pygame.K_RIGHT] or keys_pressed[pygame.K_d]):
             if(self.rect.right + self.movement <= playablerect.right):
                xmove += self.movement
-        if(keys_pressed[pygame.K_LEFT]):
+        if(keys_pressed[pygame.K_LEFT] or keys_pressed[pygame.K_a]):
             if(self.rect.left - self.movement >= playablerect.left):
                 xmove = -self.movement
-        if(keys_pressed[pygame.K_UP]):
+        if(keys_pressed[pygame.K_UP] or keys_pressed[pygame.K_w]):
             if(self.rect.top - self.movement >= playablerect.top):
                 ymove = -self.movement
-        if(keys_pressed[pygame.K_DOWN]):
+        if(keys_pressed[pygame.K_DOWN] or keys_pressed[pygame.K_s]):
             if(self.rect.bottom + self.movement <= playablerect.bottom):
                ymove += self.movement
         #If the player is trying to move in x and y, move diagonally
@@ -513,6 +519,7 @@ class Rage(pygame.sprite.Sprite):
     def __init__(self, cage, enemy, mousepos):
         # Create rage
         pygame.sprite.Sprite.__init__(self)
+        self.movement = 5
         if(cage.rageamount == 1):
             if(cage.poweruptype == 0):
                 self.base_image = pygame.image.load('data/images/rage-small.png')
@@ -535,16 +542,16 @@ class Rage(pygame.sprite.Sprite):
                 
             elif(cage.poweruptype == 6):
                 self.base_image = pygame.image.load('data/images/bangkokrage.png')
+                self.movement = 10
                 
             elif(cage.poweruptype == 7):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/vampirekissrage.png')
                 
             elif(cage.poweruptype == 8):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/seasonofthewitchrage.png')
                 
             elif(cage.poweruptype == 9):
-                self.base_image = pygame.image.load('data/images/rage-tiny.png')
-                cage.rageamount = 6
+                self.base_image = pygame.image.load('data/images/faceoffrage.png')
                 
             elif(cage.poweruptype == 10 and cage.explosionactivate):
                 self.base_image = pygame.image.load('data/images/explosion.png')
@@ -553,12 +560,14 @@ class Rage(pygame.sprite.Sprite):
                 self.base_image = pygame.image.load('data/images/magicorb.png')
             
             elif(cage.poweruptype == 11):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/rage-tiny.png')
+                cage.rageamount = 6
                 
             elif(cage.poweruptype == 12):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/gonein60powerup.png')
+                self.movement = 15
         else:
-            if(cage.poweruptype == 9):
+            if(cage.poweruptype == 11):
                 self.base_image = pygame.image.load('data/images/rage-tiny.png')
             if(cage.poweruptype == 5):
                 self.base_image = pygame.image.load('data/images/bee.png')
@@ -577,7 +586,7 @@ class Rage(pygame.sprite.Sprite):
         # Movement
         self.accuratex = self.rect.x
         self.accuratey = self.rect.y
-        self.movement = 5
+        
         DIFFX = self.rect.x - mousepos[0]
         DIFFY = self.rect.y - mousepos[1]
         DISTANCE = math.sqrt((DIFFY**2)+(DIFFX**2))
@@ -588,10 +597,13 @@ class Rage(pygame.sprite.Sprite):
             if(cage.rageamount > 6 and cage.rageamount <= 10):
                 DIFFX += ((cage.rageamount - 7) * (DIFFX * 0.25))
                 DIFFY += ((cage.rageamount - 7) * (DIFFY * 0.25))
-        self.movex = self.movement * (DIFFX / DISTANCE)
-        self.movey = self.movement * (DIFFY / DISTANCE)
-
-        if(cage.poweruptype == 9 or cage.poweruptype == 5):
+        if(DISTANCE):
+            self.movex = self.movement * (DIFFX / DISTANCE)
+            self.movey = self.movement * (DIFFY / DISTANCE)
+        else:
+            self.movex = 0
+            self.movey = 0
+        if(cage.poweruptype == 11 or cage.poweruptype == 5):
             if(cage.rageamount > 2 and cage.rageamount <= 4):
                 if(self.movey < 0 and self.movex < 0):
                     self.movex -= ((cage.rageamount - 1) * 0.3)
@@ -612,24 +624,24 @@ class Rage(pygame.sprite.Sprite):
                 else:
                     self.movex -= ((cage.rageamount - 3) * 0.3)
                     self.movey -= ((cage.rageamount - 3) * 0.5)
-        if(cage.poweruptype == 10 and cage.explosionactivate):
-            self.movex = 0
-            self.movey = 0
         
         # Rotation
-        if(DIFFY/DISTANCE > 1):
-            rotate = math.acos(1)
-        elif(DIFFY/DISTANCE < -1):
-            rotate = math.acos(-1)
+        if DISTANCE:
+            if(DIFFY/DISTANCE > 1):
+                rotate = math.acos(1)
+            elif(DIFFY/DISTANCE < -1):
+                rotate = math.acos(-1)
+            else:
+                rotate = math.acos((DIFFY/DISTANCE))
+            rotate = (rotate / math.pi) * 180.0
         else:
-            rotate = math.acos((DIFFY/DISTANCE))
-        rotate = (rotate / math.pi) * 180.0
+            rotate = 0
         if(DIFFX > 0):
             if(DIFFY <= 0):
                 rotate = (180 - rotate) + 180
             else:
                 rotate = 360 - rotate
-        if(cage.poweruptype == 9):
+        if(cage.poweruptype == 11):
             if(cage.rageamount > 2 and cage.rageamount <= 4):
                 if(self.movex > 0 and self.movey < 0):
                     rotate += ((cage.rageamount-3) * 10)
@@ -699,22 +711,23 @@ class PowerUp(pygame.sprite.Sprite):
                 self.poweruptype = 5
                 cage.powerdescription = "BEES"
             elif(main.filmtitle == "Bangkok Dangerous"):
-                self.image = pygame.image.load('data/images/bangkokpowerup.png')
+                self.image = pygame.image.load('data/images/bangkokpowerup2.png')
                 self.ragedelay = 300
                 self.poweruptype = 6
                 cage.powerdescription = "Uzi"
             elif(main.filmtitle == "Vampire's Kiss"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/vampirekisspowerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 7
                 cage.powerdescription = "Vampire Teeth"
             elif(main.filmtitle == "Season of the Witch"):
-                self.image = pygame.image.load('data/images/powerup.png')
-                self.ragedelay = 1000
+                self.image = pygame.image.load('data/images/seasonofthewitchpowerup.png')
+                self.gothroughpowerup = False
+                self.ragedelay = 1500
                 self.poweruptype = 8
-                cage.powerdescription = "Witch Sword"
+                cage.powerdescription = "Cage's Sword"
             elif(main.filmtitle == "Face/Off"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/faceoffpowerup.png')
                 self.ragedelay = 1500
                 self.poweruptype = 9
                 cage.powerdescription = "Travolta's Face"
@@ -726,12 +739,12 @@ class PowerUp(pygame.sprite.Sprite):
                 self.poweruptype = 10
                 cage.powerdescription = "Explosive Orb"
             elif(main.filmtitle == "Con Air"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/conairpowerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 11
                 cage.powerdescription = "Cage's Long Hair"
             elif(main.filmtitle == "Gone in Sixty Seconds"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/gonein60powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 12
                 cage.powerdescription = "Mustang"
