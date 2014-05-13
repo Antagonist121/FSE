@@ -229,7 +229,7 @@ class Game:
                 textpos = text.get_rect(centerx = self.width/2, centery = self.height/16)
                 self.screen.blit(text,textpos)
 
-                text = self.helpfont.render("You are Cage, and you have released a new film", 1, (255,0,0))
+                text = self.helpfont.render("You are Cage, and you have released a new film!", 1, (255,0,0))
                 textpos = text.get_rect(centerx = self.width/3, centery = self.height/6)
                 self.screen.blit(text,textpos)
 
@@ -250,6 +250,30 @@ class Game:
 
                 self.helpimage = pygame.image.load ('data/images/enemy.png')
                 self.screen.blit(self.helpimage,(self.width/1.5, self.height/2.5))
+
+                text = self.helpfont.render ("Along this journey of greatness, you will come across many greater threats.", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/2, centery = self.height/1.9)
+                self.screen.blit(text,textpos)
+
+                text = self.helpfont.render ("Use the power of the film props against the bad reviews", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/2, centery = self.height/1.75)
+                self.screen.blit(text,textpos)
+
+                text = self.helpfont.render ("and try to survive the Year of the Cage!", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/2, centery = self.height/1.65)
+                self.screen.blit(text,textpos)
+
+                text = self.helpfont.render ("Controls: Use WASD or the Arrow Keys to control Cage.", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/2, centery = self.height/1.45)
+                self.screen.blit(text,textpos)
+
+                text = self.helpfont.render ("Use the left mouse button to shoot Rage at your opponents.", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/2, centery = self.height/1.35)
+                self.screen.blit(text,textpos)
+
+                text = self.helpfont.render ("Each month has a new theme and powerups, you win if you can last 12 months!", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/2, centery = self.height/1.25)
+                self.screen.blit(text,textpos)
                 
                 if(self.quitbutton.MouseOver(mousepos)):
                     self.returnbutton.bgcol = (150,0,0)
@@ -362,7 +386,7 @@ class Game:
             self.menubutton = Button(Rect(self.width/2 - 100, self.height/4 - 30, 200, 60), "Main Menu")
             self.retrybutton = Button(Rect(self.width/2 - 100, self.menubutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Retry")
         elif newstate == STATE_HELP:
-            self.returnbutton = Button(Rect(self.width/2 - 100, self.height - 125, 200, 60), "Return to Menu")
+            self.returnbutton = Button(Rect(self.width/2 - 100, self.height - 75, 200, 60), "Return to Menu")
         else:
             return self.gametick()
 
