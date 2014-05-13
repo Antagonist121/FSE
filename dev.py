@@ -1,6 +1,7 @@
+# REMOVE DEBUG code (marked with DEBUG)
 #!/usr/bin/env python
 # Core stuff
-import os, sys, random, math
+import sys, random, math
 # Pygame
 import pygame
 from pygame import *
@@ -13,6 +14,7 @@ if not pygame.mixer:
     sys.exit(1)
 # Our files
 from interface import *
+from enemy import *
 
 # Globals
 FPS = 60
@@ -25,12 +27,12 @@ STATE_GAMEOVER  = 2
 
 class Game:
     def __init__(self, width=WIDTH, height=HEIGHT):
-        random.randint(0,0)
         pygame.init()
         # Screen
         self.width = width
         self.height = height
         self.screen = pygame.display.set_mode((self.width, self.height))
+        
         # Background
         self.background = pygame.Surface(self.screen.get_size())
         self.background = self.background.convert()
@@ -38,7 +40,7 @@ class Game:
 
         # Fonts
         self.headerfont = pygame.font.Font(None, 36)
-        self.gamestatfont = pygame.font.Font(None, 24)
+        self.gamestatfont = pygame.font.Font(None, 20)
 
         # Inteface
         self.interface = Interface(self.screen)
@@ -54,7 +56,7 @@ class Game:
         while running:
             # Time
             clock.tick(FPS)
-            curtime = self.gametick()
+            self.gametickupdate() # Update the stored game tick (ticks since this game state started)
             mousepos = pygame.mouse.get_pos()
             
             # Events
@@ -63,113 +65,64 @@ class Game:
                     running = False
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if(self.GetState() == STATE_MAINMENU):
-                        # Have they clicked on the start button
+                        # If they clicked on the start button, change the game state to playing
                         if(self.startbutton.MouseOver(mousepos)):
-                            # Change the game state to playing and update our curtime
-                            curtime = self.ChangeState(STATE_PLAYING)
-                        # Have they clicked on the quit button
+                            self.ChangeState(STATE_PLAYING)
+                        # If they have clicked on the quit button, stop the game loop
                         elif(self.quitbutton.MouseOver(mousepos)):
-                            # Stop the loop
                             running = False
-                    elif(self.GetState() == STATE_PLAYING and (curtime - self.cage.lastrage) > self.cage.ragedelay):
+                    elif(self.GetState() == STATE_PLAYING and (self.gametick - self.cage.lastrage) > self.cage.ragedelay):
                         # Shooting mechanism
-                        self.rage_sprites.add(Rage(self.cage, mousepos))
-                        self.cage.lastrage = curtime
+                        self.rage_sprites.add(Rage(self.cage, 0, mousepos))
+                        self.cage.lastrage = self.gametick
                         while(self.cage.rageamount > 1):
-                            self.rage_sprites.add(Rage(self.cage, mousepos))
+                            self.rage_sprites.add(Rage(self.cage, 0, mousepos))
                             self.cage.rageamount -= 1
                         if(mousepos[0] > self.cage.rect.x):
                             self.cage.image = self.cage.rageimg
                         else:
                             self.cage.image = pygame.transform.flip(self.cage.rageimg, True, False)
                     elif(self.GetState() == STATE_GAMEOVER):
-                        # Have they clicked on the main menu button
-                        if(curtime >= 2000):
+                        # The gameover screen buttons have a two-second delay before you can click on them (people panic)
+                        if(self.gametick >= 2000):
                             if self.menubutton.MouseOver(mousepos):
-                                # Change the game state to the main menu and update our curtime
-                                curtime = self.ChangeState(STATE_MAINMENU)
+                                # Change the game state to the main menu
+                                self.ChangeState(STATE_MAINMENU)
                             elif self.retrybutton.MouseOver(mousepos):
-                                # Change the game state to playing again and update curtime
-                                curtime = self.ChangeState(STATE_PLAYING)
+                                # Change the game state to playing again
+                                self.ChangeState(STATE_PLAYING)
 
             if(self.GetState() == STATE_PLAYING):
                 playablearea = self.GetPlayableRect()
                 
                 # De-Rage Cage
-                if((curtime - self.cage.lastrage) > 1000):
+                if((self.gametick - self.cage.lastrage) > 1000):
                     self.cage.image = self.cage.cageimg
-                
-                # Enemy Creation
-                if((curtime - self.lastenemyspawn) > self.enemyspawnrate):
-                    self.lastenemyspawn = curtime
-                    self.enemy_sprites.add(Enemy(playablearea))
 
-                # Super Enemy Creation
-                if((curtime - self.lastsuperenemyspawn) > 15000):
-                    self.lastsuperenemyspawn = curtime
-                    self.superenemy_sprites.add(SuperEnemy(playablearea))
-                    self.supernumber += 1
-
-                # Super Enemy Changes
-                if(self.supernumber >= 1):
-                    self.enemyspawnrate = 750
-                else:
-                    self.enemyspawnrate = 1500
-
-                # Powerup Creation
-                if((curtime - self.lastpoweruptime) > 10000):
-                    self.lastpoweruptime = curtime
-                    self.powerup_sprites.add(PowerUp(self, playablearea))
+                # Spawns enemies and power-ups
+                self.Spawner(playablearea)
 
                 # Movement stuff
                 self.cage.move(key.get_pressed(), playablearea)
-                self.enemy_sprites.update(self.cage)
+                self.enemy_sprites.update(self)
                 self.rage_sprites.update(self.rage_sprites, playablearea)
                 self.superenemy_sprites.update(self.cage)
 
                 # Collision detection
-                # Enemy collides with cage
-                collidelist = pygame.sprite.spritecollide(self.cage,self.enemy_sprites,False)
-                if collidelist:
-                    self.ChangeState(STATE_GAMEOVER)
-                    curtime = self.gametick()
-                # Enemy collides with bullet
-                collidelist = pygame.sprite.groupcollide(self.enemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
-                if collidelist:
-                    self.score += (5*len(collidelist))
-                # Super Enemy collides with bullet
-                collidelist = pygame.sprite.groupcollide(self.superenemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
-                if collidelist:
-                    self.score += (10*len(collidelist))
-                    self.supernumber -= 1
-                # Cage Collides with powerup
-                collidelist = pygame.sprite.spritecollide(self.cage,self.powerup_sprites,True)
-                if collidelist:
-                    self.cage.powerupgot = curtime
-                    self.cage.powerupend = curtime + collidelist[0].length
-                    self.cage.ragedelay = collidelist[0].ragedelay
-                    self.cage.gothroughpowerup = collidelist[0].gothroughpowerup
-                    self.cage.poweruptype = collidelist[0].poweruptype
-                elif (curtime >= self.cage.powerupend and self.cage.powerupend != 0):
-                    self.cage.ragedelay = self.cage.defaultdelay
-                    self.cage.powerupend = 0
-                    self.cage.gothroughpowerup = True
-                    self.cage.poweruptype = 0
-                # Scoring
+                self.CollisionDetection()
 
-                if((curtime - self.lasttimescore) >= 1000):
-                    self.lasttimescore = curtime
+                # Scoring
+                if((self.gametick - self.lasttimescore) >= 1000):
+                    self.lasttimescore = self.gametick
                     self.score+=1
 
-
                 # Chapter Changes
-
-                if((curtime - self.lastchapterchange) >= 30000):
-                    self.lastchapterchange = curtime
+                if((self.gametick - self.lastchapterchange) >= 30000):
+                    self.lastchapterchange = self.gametick
                     # If the film array is empty (played all the chapters)
                     if(not self.filmarray):
                         self.gameWon = True
-                        curtime = self.ChangeState(STATE_GAMEOVER)
+                        self.ChangeState(STATE_GAMEOVER)
                     else:
                         self.ChangeChapter()
             
@@ -206,7 +159,7 @@ class Game:
                 # Render the text (score, month, film) and the charge meter
                 self.RenderPlayingInterface()
                 # Starting message
-                if (curtime <= 2000):
+                if (self.gametick <= 2000):
                     text = self.headerfont.render("Here come the reviews!", 1, (255,0,0))
                     textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
                     self.screen.blit(text,textpos)
@@ -223,13 +176,19 @@ class Game:
                 textpos = text.get_rect(centerx=self.width/2,centery=(self.height/2+36))
                 self.screen.blit(text,textpos)
 
-                # Button
-                if(self.menubutton.MouseOver(mousepos)):
+                # Buttons
+                # Menu
+                if(self.gametick <= 2000):
+                    self.menubutton.bgcol = (150,150,150)
+                elif(self.menubutton.MouseOver(mousepos)):
                     self.menubutton.bgcol = (150,0,0)
                 else:
                     self.menubutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.menubutton)
-                if(self.retrybutton.MouseOver(mousepos)):
+                # Retry
+                if(self.gametick <= 2000):
+                    self.retrybutton.bgcol = (150,150,150)
+                elif(self.retrybutton.MouseOver(mousepos)):
                     self.retrybutton.bgcol = (150,0,0)
                 else:
                     self.retrybutton.bgcol = (255,0,0)
@@ -237,30 +196,6 @@ class Game:
                 
             pygame.display.flip()
         pygame.quit()
-
-    def LoadSprites(self):
-        self.cage = Cage(self.GetPlayableRect())
-        self.cage_sprite = pygame.sprite.RenderPlain((self.cage))
-        self.superenemy_sprites = pygame.sprite.Group()
-        self.enemy_sprites = pygame.sprite.Group()
-        self.rage_sprites = pygame.sprite.Group()
-        self.powerup_sprites = pygame.sprite.Group()
-
-    # Returns the time since the start of the current state
-    def gametick(self):
-        return pygame.time.get_ticks() - self.statestarttime
-
-    # Resets the game tick to start from 0 again (used when changing states)
-    def gametickstart(self):
-        self.statestarttime = pygame.time.get_ticks()
-
-    # Returns the current game state
-    def GetState(self):
-        return self.gamestate
-
-    # Returns a rect containing the playable area of the screen
-    def GetPlayableRect(self):
-        return Rect(0, 0, self.width, self.height-self.bottomhudheight)
 
     """
         ChangeState
@@ -281,10 +216,9 @@ class Game:
 
             # Spawning
             self.lastpoweruptime = 0
-            self.lastenemyspawn = 0
-            self.lastsuperenemyspawn = 0
-            self.supernumber = 0
-            self.enemyspawnrate = 1500
+
+            # Enemies
+            self.LoadEnemyTypes()
 
             # Chapters
             self.filmarray = ["National Treasure", "National Treasure 2", "Ghost Rider", "Ghost Rider 2", "Wicker Man", "Bangkok Dangerous", "Vampire's Kiss", "Season of the Witch", "Face/Off", "Sorcerer's Apprectice", "Gone in Sixty Seconds", "Con Air"]
@@ -296,17 +230,48 @@ class Game:
             self.menubutton = Button(Rect(self.width/2 - 100, self.height/4 - 30, 200, 60), "Main Menu")
             self.retrybutton = Button(Rect(self.width/2 - 100, self.menubutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Retry")
         else:
-            return self.gametick()
+            return 0
 
         # Now that we've initialized the state, we can update the game's state variable and reset the game tick
         self.gamestate = newstate
         self.gametickstart()
-        return self.gametick()
+        
+    def LoadEnemyTypes(self):
+        self.defaultenemy = EnemyType()
+        self.enemytypes = {}
+        self.enemytypes['Tiny Enemy'] = EnemyType('Tiny Enemy', 1, 0, 'data/images/enemy-tiny.png')
+        self.enemytypes['Youtube Reviewer'] = EnemyType('Youtube Reviewer', 0.5, 15000, 'data/images/youtube-logo.png', YoutubeReviewerInit, YoutubeReviewerUpdate)
+        
+    def LoadSprites(self):
+        self.cage = Cage(self.GetPlayableRect())
+        self.cage_sprite = pygame.sprite.RenderPlain((self.cage))
+        self.superenemy_sprites = pygame.sprite.Group()
+        self.enemy_sprites = pygame.sprite.Group()
+        self.rage_sprites = pygame.sprite.Group()
+        self.powerup_sprites = pygame.sprite.Group()
+        
+    # Resets the game tick to start from 0 again (used when changing states)
+    def gametickstart(self):
+        self.statestarttime = pygame.time.get_ticks()
+        self.gametickupdate()
+
+    # Updates the stored gametick variable (avoids repeated sums)
+    def gametickupdate(self):
+        self.gametick = pygame.time.get_ticks() - self.statestarttime
+
+    # Returns the current game state
+    def GetState(self):
+        return self.gamestate
+
+    # Returns a rect containing the playable area of the screen
+    def GetPlayableRect(self):
+        return Rect(0, 0, self.width, self.height-self.bottomhudheight)
+    
     def ClearScreen(self):
         self.screen.blit(self.background, (0, 0))
     def RenderPlayingInterface(self):
         # "Rage" charge meter
-        ragerect = Rect(self.width - 105, self.height - 35, min((float(self.gametick()-self.cage.lastrage)/self.cage.ragedelay) * 100, 100), 30)
+        ragerect = Rect(self.width - 105, self.height - 35, min((float(self.gametick-self.cage.lastrage)/self.cage.ragedelay) * 100, 100), 30)
 
         # Interface background
         interfaceborder = Rect(0, self.height - (ragerect.height + 15), self.width, ragerect.height + 15)
@@ -322,13 +287,21 @@ class Game:
         # Film
         film = self.gamestatfont.render (self.filmtitle, 1, (255,0,0))
         filmpos = film.get_rect(left=monthpos.right + 35, centery=interfacebackground.centery)
-
+        # Powerup
+        powerup = self.gamestatfont.render ("Current Powerup: " + self.cage.currentdescription, 1, (255,0,0))
+        poweruppos = powerup.get_rect(left = filmpos.right + 35, centery = interfacebackground.centery)
+        # Rage message on rage charge meter
+        rage = self.gamestatfont.render("Rage", 1, (0,0,0))
+        ragepos = rage.get_rect(centerx=ragerect.centerx, centery=ragerect.centery)
+    
         # Render interface
         pygame.draw.rect(self.screen, (255,0,0), interfaceborder)
         pygame.draw.rect(self.screen, (0,0,0), interfacebackground)
+        self.screen.blit(rage, ragepos)
         self.screen.blit(score, scorepos)
         self.screen.blit(month, monthpos)
         self.screen.blit(film, filmpos)
+        self.screen.blit(powerup, poweruppos)
         pygame.draw.rect(self.screen, (0,255,0), ragerect)
     def ChangeChapter(self):
         self.curchapter = random.randint(0, (self.filmarray.__len__() - 1))
@@ -337,6 +310,67 @@ class Game:
         del self.filmarray[self.curchapter]
         del self.filmbgarray[self.curchapter]
         self.month += 1
+    def Spawner(self, playablearea=False):
+        if(not playablearea):playablearea = self.GetPlayableRect()
+        # Enemy Creation
+        if(self.defaultenemy.spawnrate > 0 and self.gametick - self.defaultenemy.lastspawn >= self.defaultenemy.spawnrate):
+            self.defaultenemy.lastspawn = self.gametick
+            self.enemy_sprites.add(Enemy(self.defaultenemy, playablearea))
+        for name, etype in self.enemytypes.items():
+            if(etype.spawnrate > 0 and self.gametick - etype.lastspawn >= etype.spawnrate):
+                etype.lastspawn = self.gametick
+                self.enemy_sprites.add(Enemy(etype, playablearea))
+        
+        # Powerup Creation
+        if((self.gametick - self.lastpoweruptime) > 10000):
+            self.lastpoweruptime = self.gametick
+            self.powerup_sprites.add(PowerUp(self, self.cage, playablearea))
+    def CollisionDetection(self):
+        # Enemy collides with cage
+        collidelist = pygame.sprite.spritecollide(self.cage,self.enemy_sprites,False)
+        if collidelist:
+            self.ChangeState(STATE_GAMEOVER)
+            
+        # Enemy collides with bullet
+        collidelist = pygame.sprite.groupcollide(self.enemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
+        if collidelist:
+            self.score += (5*len(collidelist))
+            if self.cage.rageexplode:
+                self.cage.explosionactivate = True
+                for enemy, ragelist in collidelist.items():
+                    self.rage_sprites.add(Rage(self.cage, enemy, mousepos))
+                self.cage.rageexplode = False
+                self.cage.gothroughpowerup = False
+                self.cage.explosiondelay = curtime
+        if ((curtime - self.cage.explosiondelay) > 1000 and self.cage.explosionactivate):
+            self.cage.manualpowerend = True
+
+            
+        # Super Enemy collides with bullet
+        collidelist = pygame.sprite.groupcollide(self.superenemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
+        if collidelist:
+            self.score += (10*len(collidelist))
+            
+        # Cage Collides with powerup
+        collidelist = pygame.sprite.spritecollide(self.cage,self.powerup_sprites,True)
+        if collidelist:
+            self.cage.powerupgot = self.gametick
+            self.cage.powerupend = self.gametick + collidelist[0].length
+            self.cage.ragedelay = collidelist[0].ragedelay
+            self.cage.gothroughpowerup = collidelist[0].gothroughpowerup
+            self.cage.poweruptype = collidelist[0].poweruptype
+            self.cage.rageexplode = collidelist[0].rageexplode
+            self.cage.currentdescription = self.cage.powerdescription
+        elif (curtime >= self.cage.powerupend and self.cage.powerupend != 0 or (self.cage.manualpowerend)):
+            self.manualpowerend = False
+            self.cage.ragedelay = self.cage.defaultdelay
+            self.cage.powerupend = 0
+            self.cage.gothroughpowerup = True
+            self.cage.poweruptype = 0
+            self.cage.currentdescription = "None"
+            self.cage.rageexplode = False
+            self.cage.explosionactivate = False
+        
 # Cage (player) class
 class Cage(pygame.sprite.Sprite):
     def __init__(self, playablerect):
@@ -363,7 +397,15 @@ class Cage(pygame.sprite.Sprite):
         self.rageamount = 1
         self.defaultdelay = self.ragedelay
         self.gothroughpowerup = True
+        self.rageexplode = False
+        self.explosiondelay = 0
+        self.explosionactivate = False
+        self.manualpowerend = False
         self.poweruptype = 0
+
+        # PowerUp Descriptions
+        self.powerdescription = "None"
+        self.currentdescription = "None"
 
     def move(self, keys_pressed, playablerect):
         # Used to track how much we should move in x and y
@@ -391,7 +433,7 @@ class Cage(pygame.sprite.Sprite):
         self.rect.y += ymove
 
 class Rage(pygame.sprite.Sprite):
-    def __init__(self, cage, mousepos):
+    def __init__(self, cage, enemy, mousepos):
         # Create rage
         pygame.sprite.Sprite.__init__(self)
         if(cage.rageamount == 1):
@@ -405,18 +447,17 @@ class Rage(pygame.sprite.Sprite):
                 self.base_image = pygame.image.load('data/images/rage-small.png')
                 
             elif(cage.poweruptype == 3):
-                self.base_image = pygame.image.load('data/images/rage-tiny.png')
-                cage.rageamount = 6
+                self.base_image = pygame.image.load('data/images/rage-small.png')
                             
             elif(cage.poweruptype == 4):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/ghostriderskull.png')
                 
             elif(cage.poweruptype == 5):
-                self.base_image = pygame.image.load('data/images/rage-tiny.png')
+                self.base_image = pygame.image.load('data/images/bee.png')
                 cage.rageamount = 10 
                 
             elif(cage.poweruptype == 6):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/bangkokrage.png')
                 
             elif(cage.poweruptype == 7):
                 self.base_image = pygame.image.load('data/images/rage-small.png')
@@ -425,21 +466,25 @@ class Rage(pygame.sprite.Sprite):
                 self.base_image = pygame.image.load('data/images/rage-small.png')
                 
             elif(cage.poweruptype == 9):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/rage-tiny.png')
+                cage.rageamount = 6
                 
-            elif(cage.poweruptype == 10):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+            elif(cage.poweruptype == 10 and cage.explosionactivate):
+                self.base_image = pygame.image.load('data/images/explosion.png')
                 
+            elif(cage.poweruptype == 10 and not cage.explosionactivate):
+                self.base_image = pygame.image.load('data/images/magicorb.png')
+            
             elif(cage.poweruptype == 11):
                 self.base_image = pygame.image.load('data/images/rage-small.png')
                 
             elif(cage.poweruptype == 12):
                 self.base_image = pygame.image.load('data/images/rage-small.png')
         else:
-            if(cage.poweruptype == 3):
+            if(cage.poweruptype == 9):
                 self.base_image = pygame.image.load('data/images/rage-tiny.png')
             if(cage.poweruptype == 5):
-                self.base_image = pygame.image.load('data/images/rage-tiny.png')
+                self.base_image = pygame.image.load('data/images/bee.png')
             
         self.image = self.base_image
         self.rect = self.image.get_rect()
@@ -447,6 +492,10 @@ class Rage(pygame.sprite.Sprite):
         # Spawn where cage is
         self.rect.x = (cage.rect.x + cage.rect.width/2)
         self.rect.y = (cage.rect.y + cage.rect.height/2)
+
+        if(cage.poweruptype == 10 and cage.explosionactivate):
+            self.rect.x = (enemy.rect.x + enemy.rect.width/2)
+            self.rect.y = (enemy.rect.y + enemy.rect.height/2)
 
         # Movement
         self.accuratex = self.rect.x
@@ -465,7 +514,7 @@ class Rage(pygame.sprite.Sprite):
         self.movex = self.movement * (DIFFX / DISTANCE)
         self.movey = self.movement * (DIFFY / DISTANCE)
 
-        if(cage.poweruptype == 3 or cage.poweruptype == 5):
+        if(cage.poweruptype == 9 or cage.poweruptype == 5):
             if(cage.rageamount > 2 and cage.rageamount <= 4):
                 if(self.movey < 0 and self.movex < 0):
                     self.movex -= ((cage.rageamount - 1) * 0.3)
@@ -486,6 +535,9 @@ class Rage(pygame.sprite.Sprite):
                 else:
                     self.movex -= ((cage.rageamount - 3) * 0.3)
                     self.movey -= ((cage.rageamount - 3) * 0.5)
+        if(cage.poweruptype == 10 and cage.explosionactivate):
+            self.movex = 0
+            self.movey = 0
         
         # Rotation
         if(DIFFY/DISTANCE > 1):
@@ -500,7 +552,7 @@ class Rage(pygame.sprite.Sprite):
                 rotate = (180 - rotate) + 180
             else:
                 rotate = 360 - rotate
-        if(cage.poweruptype == 3):
+        if(cage.poweruptype == 9):
             if(cage.rageamount > 2 and cage.rageamount <= 4):
                 if(self.movex > 0 and self.movey < 0):
                     rotate += ((cage.rageamount-3) * 10)
@@ -534,168 +586,89 @@ class Rage(pygame.sprite.Sprite):
 
 class PowerUp(pygame.sprite.Sprite):
 
-    def __init__(self, main, playablerect):
+    def __init__(self, main, cage, playablerect):
         pygame.sprite.Sprite.__init__(self)
         uniquepower = random.randint(1,3)
         self.gothroughpowerup = True
+        self.rageexplode = False
         self.ragedelay = 2000
+        self.length = 5000
         if(uniquepower == 3):
             if(main.filmtitle == "National Treasure"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/national1powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 1
+                cage.powerdescription = "Declaration of Independence"
             elif(main.filmtitle == "National Treasure 2"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/national2powerup.png')
                 self.ragedelay = 500
                 self.poweruptype = 2
+                cage.powerdescription = "Illuminati Coin"
             elif(main.filmtitle == "Ghost Rider"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/ghostriderchain.png')
                 self.gothroughpowerup = False
-                self.ragedelay = 2000
+                self.ragedelay = 1500
                 self.poweruptype = 3
+                cage.powerdescription = "Ghost Rider Chain"
             elif(main.filmtitle == "Ghost Rider 2"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/ghostriderskull.png')
                 self.gothroughpowerup = False
                 self.ragedelay = 1500
                 self.poweruptype = 4
+                cage.powerdescription = "Ghost Rider Skull"
             elif(main.filmtitle == "Wicker Man"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/bee.png')
                 self.ragedelay = 1000
                 self.poweruptype = 5
+                cage.powerdescription = "BEES"
             elif(main.filmtitle == "Bangkok Dangerous"):
-                self.image = pygame.image.load('data/images/powerup.png')
-                self.ragedelay = 1000
+                self.image = pygame.image.load('data/images/bangkokpowerup.png')
+                self.ragedelay = 300
                 self.poweruptype = 6
+                cage.powerdescription = "Uzi"
             elif(main.filmtitle == "Vampire's Kiss"):
                 self.image = pygame.image.load('data/images/powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 7
+                cage.powerdescription = "Vampire Teeth"
             elif(main.filmtitle == "Season of the Witch"):
                 self.image = pygame.image.load('data/images/powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 8
+                cage.powerdescription = "Witch Sword"
             elif(main.filmtitle == "Face/Off"):
                 self.image = pygame.image.load('data/images/powerup.png')
-                self.ragedelay = 1000
+                self.ragedelay = 1500
                 self.poweruptype = 9
+                cage.powerdescription = "Travolta's Face"
             elif(main.filmtitle == "Sorcerer's Apprectice"):
-                self.image = pygame.image.load('data/images/powerup.png')
-                self.ragedelay = 1000
+                self.image = pygame.image.load('data/images/magicorb.png')
+                self.rageexplode = True
+                self.ragedelay = 2500
+                self.length = 500000
                 self.poweruptype = 10
+                cage.powerdescription = "Explosive Orb"
             elif(main.filmtitle == "Con Air"):
                 self.image = pygame.image.load('data/images/powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 11
+                cage.powerdescription = "Cage's Long Hair"
             elif(main.filmtitle == "Gone in Sixty Seconds"):
                 self.image = pygame.image.load('data/images/powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 12
+                cage.powerdescription = "Mustang"
         else:
             self.image = pygame.image.load('data/images/powerup.png')
             self.ragedelay = 1000
             self.gothroughpowerup = True
             self.poweruptype = 0
+            cage.powerdescription = "Good Review"
 
-        # 
         self.rect = self.image.get_rect()
-        self.ragedelay = 1000
-        self.length = 5000
         self.rect.x = random.randint(playablerect.left, playablerect.right-self.rect.width)
         self.rect.y = random.randint(playablerect.top, playablerect.bottom-self.rect.height)
 
-class Enemy(pygame.sprite.Sprite):
-    
-    def __init__(self, playablerect):
-        pygame.sprite.Sprite.__init__(self)
-        #self.image, self.rect = load_image('enemy-small.png',255)
-        self.image = pygame.image.load('data/images/enemy-small.png')
-        self.rect = self.image.get_rect()
-        startLine = random.randint(0,3)
-        if(startLine == 0):
-            startY = playablerect.top-self.rect.height
-            startX = random.randint(playablerect.left, playablerect.right)
-        if(startLine == 2):
-            startY = playablerect.bottom
-            startX = random.randint(playablerect.left, playablerect.right)
-        if(startLine == 1):
-            startX = playablerect.right
-            startY = random.randint(playablerect.top, playablerect.bottom)
-        if(startLine == 3):
-            startX = playablerect.left-self.rect.width
-            startY = random.randint(playablerect.top, playablerect.bottom)
-        self.rect.x = startX
-        self.rect.y = startY
-        self.accuratex = startX
-        self.accuratey = startY
-        self.movement = 2
-        
-    def update(self, cage):
-        # Work out the difference in position between the enemy and the player
-        DIFFX = cage.rect.x - self.rect.x
-        DIFFY = cage.rect.y - self.rect.y
-        DISTANCE = math.sqrt((DIFFY**2)+(DIFFX**2))
-        if(DISTANCE < self.movement):
-            self.accuratex = cage.rect.x
-            self.accuratey = cage.rect.y
-        elif(DIFFX == 0):
-            self.accuratey += math.copysign(self.movement, DIFFY)
-        elif(DIFFY == 0):
-            self.accuratex += math.copysign(self.movement, DIFFX)
-        else:
-            self.accuratex += self.movement * (DIFFX/DISTANCE)
-            self.accuratey += self.movement * (DIFFY/DISTANCE)
-        # Actually move the sprite. We truncate the more accurate versions of their coordinates
-        self.rect.x = int(self.accuratex)
-        self.rect.y = int(self.accuratey)
-
-class SuperEnemy(pygame.sprite.Sprite):
-    def __init__(self, playablerect):
-        pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load('data/images/youtube-logo.png')
-        self.rect = self.image.get_rect()
-        startLine = random.randint(0,3)
-        if(startLine == 0):
-            startY = playablerect.top-self.rect.height
-            startX = random.randint(playablerect.left, playablerect.right)
-        if(startLine == 2):
-            startY = playablerect.bottom
-            startX = random.randint(playablerect.left, playablerect.right)
-        if(startLine == 1):
-            startX = playablerect.right
-            startY = random.randint(playablerect.top, playablerect.bottom)
-        if(startLine == 3):
-            startX = playablerect.left-self.rect.width
-            startY = random.randint(playablerect.top, playablerect.bottom)
-        self.rect.x = startX
-        self.rect.y = startY
-        self.movement = 1
-        
-    def update(self,cage):
-        DIFFX = cage.rect.x - self.rect.x
-        DIFFY = cage.rect.y - self.rect.y
-        DISTANCE = math.sqrt((DIFFY**2)+(DIFFX**2))
-        if(DISTANCE < self.movement):
-            self.rect.x = cage.rect.x
-            self.rect.y = cage.rect.y
-        elif(DIFFX == 0):
-            self.rect.y += math.copysign(self.movement, DIFFY)
-        elif(DIFFY == 0):
-            self.rect.x += math.copysign(self.movement, DIFFX)
-        else:
-            changex = int(self.movement * (DIFFX/DISTANCE))
-            changey = int(self.movement * (DIFFY/DISTANCE))
-            if(changex == 0):
-                changey += math.copysign(1, DIFFY)
-            if(changey == 0):
-                changex += math.copysign(1, DIFFX)
-            changedist = math.sqrt((changex**2)+(changey**2))
-            self.rect.x += changex
-            self.rect.y += changey
-
-                                       
-
-
-        
 if __name__ == "__main__":
     window = Game()
     window.Loop()
