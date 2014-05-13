@@ -25,7 +25,6 @@ STATE_GAMEOVER  = 2
 
 class Game:
     def __init__(self, width=WIDTH, height=HEIGHT):
-        random.randint(0,0)
         pygame.init()
         # Screen
         self.width = width
@@ -38,7 +37,7 @@ class Game:
 
         # Fonts
         self.headerfont = pygame.font.Font(None, 36)
-        self.gamestatfont = pygame.font.Font(None, 24)
+        self.gamestatfont = pygame.font.Font(None, 20)
 
         # Inteface
         self.interface = Interface(self.screen)
@@ -120,7 +119,7 @@ class Game:
                 # Powerup Creation
                 if((curtime - self.lastpoweruptime) > 10000):
                     self.lastpoweruptime = curtime
-                    self.powerup_sprites.add(PowerUp(self, playablearea))
+                    self.powerup_sprites.add(PowerUp(self, self.cage, playablearea))
 
                 # Movement stuff
                 self.cage.move(key.get_pressed(), playablearea)
@@ -163,6 +162,7 @@ class Game:
                     self.cage.gothroughpowerup = collidelist[0].gothroughpowerup
                     self.cage.poweruptype = collidelist[0].poweruptype
                     self.cage.rageexplode = collidelist[0].rageexplode
+                    self.cage.currentdescription = self.cage.powerdescription
                 elif (curtime >= self.cage.powerupend and self.cage.powerupend != 0 or (self.cage.manualpowerend)):
                     self.manualpowerend = False
                     self.cage.ragedelay = self.cage.defaultdelay
@@ -171,6 +171,7 @@ class Game:
                     self.cage.rageexplode = False
                     self.cage.explosionactivate = False
                     self.cage.poweruptype = 0
+                    self.cage.currentdescription = "None"
                 # Scoring
 
                 if((curtime - self.lasttimescore) >= 1000):
@@ -339,12 +340,17 @@ class Game:
         film = self.gamestatfont.render (self.filmtitle, 1, (255,0,0))
         filmpos = film.get_rect(left=monthpos.right + 35, centery=interfacebackground.centery)
 
+        # Powerup
+        powerup = self.gamestatfont.render ("Current Powerup: " + self.cage.currentdescription, 1, (255,0,0))
+        poweruppos = powerup.get_rect(left = filmpos.right + 35, centery = interfacebackground.centery)
+
         # Render interface
         pygame.draw.rect(self.screen, (255,0,0), interfaceborder)
         pygame.draw.rect(self.screen, (0,0,0), interfacebackground)
         self.screen.blit(score, scorepos)
         self.screen.blit(month, monthpos)
         self.screen.blit(film, filmpos)
+        self.screen.blit(powerup, poweruppos)
         pygame.draw.rect(self.screen, (0,255,0), ragerect)
     def ChangeChapter(self):
         self.curchapter = random.randint(0, (self.filmarray.__len__() - 1))
@@ -385,6 +391,10 @@ class Cage(pygame.sprite.Sprite):
         self.manualpowerend = False
         self.poweruptype = 0
 
+        # PowerUp Descriptions
+        self.powerdescription = "None"
+        self.currentdescription = "None"
+        
     def move(self, keys_pressed, playablerect):
         # Used to track how much we should move in x and y
         xmove = 0
@@ -426,10 +436,9 @@ class Rage(pygame.sprite.Sprite):
                 
             elif(cage.poweruptype == 3):
                 self.base_image = pygame.image.load('data/images/rage-small.png')
-                
-                            
+            
             elif(cage.poweruptype == 4):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/ghostriderskull.png')
                 
             elif(cage.poweruptype == 5):
                 self.base_image = pygame.image.load('data/images/bee.png')
@@ -566,7 +575,7 @@ class Rage(pygame.sprite.Sprite):
 
 class PowerUp(pygame.sprite.Sprite):
 
-    def __init__(self, main, playablerect):
+    def __init__(self, main, cage, playablerect):
         pygame.sprite.Sprite.__init__(self)
         uniquepower = random.randint(1,3)
         self.gothroughpowerup = True
@@ -578,59 +587,72 @@ class PowerUp(pygame.sprite.Sprite):
                 self.image = pygame.image.load('data/images/national1powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 1
+                cage.powerdescription = "Declaration of Independence"
             elif(main.filmtitle == "National Treasure 2"):
                 self.image = pygame.image.load('data/images/national2powerup.png')
                 self.ragedelay = 500
                 self.poweruptype = 2
+                cage.powerdescription = "Illuminati Coin"
             elif(main.filmtitle == "Ghost Rider"):
                 self.image = pygame.image.load('data/images/ghostriderchain.png')
                 self.gothroughpowerup = False
                 self.ragedelay = 1500
                 self.poweruptype = 3
+                cage.powerdescription = "Ghost Rider Chain"
             elif(main.filmtitle == "Ghost Rider 2"):
                 self.image = pygame.image.load('data/images/ghostriderskull.png')
                 self.gothroughpowerup = False
                 self.ragedelay = 1500
                 self.poweruptype = 4
+                cage.powerdescription = "Ghost Rider Skull"
             elif(main.filmtitle == "Wicker Man"):
                 self.image = pygame.image.load('data/images/bee.png')
                 self.ragedelay = 1000
                 self.poweruptype = 5
+                cage.powerdescription = "BEES"
             elif(main.filmtitle == "Bangkok Dangerous"):
                 self.image = pygame.image.load('data/images/bangkokpowerup.png')
                 self.ragedelay = 300
                 self.poweruptype = 6
+                cage.powerdescription = "Uzi"
             elif(main.filmtitle == "Vampire's Kiss"):
                 self.image = pygame.image.load('data/images/powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 7
+                cage.powerdescription = "Vampire Teeth"
             elif(main.filmtitle == "Season of the Witch"):
                 self.image = pygame.image.load('data/images/powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 8
+                cage.powerdescription = "Witch Sword"
             elif(main.filmtitle == "Face/Off"):
                 self.image = pygame.image.load('data/images/powerup.png')
                 self.ragedelay = 1500
                 self.poweruptype = 9
+                cage.powerdescription = "Travolta's Face"
             elif(main.filmtitle == "Sorcerer's Apprectice"):
                 self.image = pygame.image.load('data/images/magicorb.png')
                 self.rageexplode = True
                 self.ragedelay = 2500
                 self.length = 500000
                 self.poweruptype = 10
+                cage.powerdescription = "Explosive Orb"
             elif(main.filmtitle == "Con Air"):
                 self.image = pygame.image.load('data/images/powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 11
+                cage.powerdescription = "Cage's Long Hair"
             elif(main.filmtitle == "Gone in Sixty Seconds"):
                 self.image = pygame.image.load('data/images/powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 12
+                cage.powerdescription = "Mustang"
         else:
             self.image = pygame.image.load('data/images/powerup.png')
             self.ragedelay = 1000
             self.gothroughpowerup = True
             self.poweruptype = 0
+            cage.powerdescription = "Good Review"
 
         self.rect = self.image.get_rect()
         self.rect.x = random.randint(playablerect.left, playablerect.right-self.rect.width)
