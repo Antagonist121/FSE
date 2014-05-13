@@ -14,6 +14,7 @@ class Interface:
         self.screen = screen
         self.buttonpadding = 10 # Gap between buttons
         self.padding = 5 # General padding around elements
+        self.bordersize = 3 # Size of borders in pixels
         
     def RenderButton(self, button):
         pygame.draw.rect(self.screen, button.bgcol, button.rect)
@@ -22,16 +23,24 @@ class Interface:
         self.screen.blit(text,textpos)
         
     def RenderTextbox(self, textbox):
-        text = self.textboxfont.render(textbox.message, 1, textbox.textcol)
+        # Load font
+        font = textbox.font
+        if(not textbox.font):
+            font = self.textboxfont
+        # Text
+        text = font.render(textbox.message, 1, textbox.textcol)
         textpos = text.get_rect(centerx=textbox.pos[0],centery=textbox.pos[1])
-        
-        boxsize = [textpos.width + self.padding * 4, textpos.height + self.padding * 4]
+
+        # Border
+        boxsize = [textpos.width + self.padding * 2 + self.bordersize * 2, textpos.height + self.padding * 2 + self.bordersize * 2]
         borderrect = Rect(textbox.pos[0]-boxsize[0]/2, textbox.pos[1]-boxsize[1]/2, boxsize[0], boxsize[1])
-        
-        boxsize[0] -= self.padding * 2
-        boxsize[1] -= self.padding * 2
+
+        # Background
+        boxsize[0] -= self.bordersize * 2
+        boxsize[1] -= self.bordersize * 2
         backgroundrect = Rect(textbox.pos[0]-boxsize[0]/2, textbox.pos[1]-boxsize[1]/2, boxsize[0], boxsize[1])
 
+        # Render
         pygame.draw.rect(self.screen, textbox.bordercol, borderrect)
         pygame.draw.rect(self.screen, textbox.bgcol, backgroundrect)
         self.screen.blit(text, textpos)
@@ -49,9 +58,10 @@ class Button:
 
 # Textbox class- requires a position for the center and a message. Doesn't support new lines
 class Textbox:
-    def __init__(self, pos, message):
+    def __init__(self, pos, message, font=False):
         self.pos = pos
         self.message = message
+        self.font = font
         self.bgcol = (0,0,0)
         self.bordercol = (255,0,0)
         self.textcol = (255,255,255)

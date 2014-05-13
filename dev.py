@@ -239,17 +239,10 @@ class Game:
                 if (self.gametick <= 2000):
                     self.interface.RenderTextbox(self.startmessage)
             elif self.GetState() == STATE_GAMEOVER:
-                if (self.gameWon):
-                    text = self.headerfont.render("THE RAGE SAVED THE CAGE! WELL DONE!", 1, (255,255,0))
-                    textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
-                    self.screen.blit(text,textpos)
-                else:
-                    text = self.headerfont.render("THE RAGE COULD NOT SAVE THE CAGE!", 1, (255,255,0))
-                    textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
-                    self.screen.blit(text,textpos)
-                text = self.headerfont.render("Game Over.", 1, (255,255,0))
-                textpos = text.get_rect(centerx=self.width/2,centery=(self.height/2+36))
-                self.screen.blit(text,textpos)
+                # Messages- Game Over, win/lose message
+                self.interface.RenderTextbox(self.gameovermsg)
+                if (self.gameWon): self.interface.RenderTextbox(self.winmsg)
+                else: self.interface.RenderTextbox(self.losemsg)
 
                 # Buttons
                 # Menu
@@ -285,7 +278,8 @@ class Game:
             self.quitbutton = Button(Rect(self.width/2 - 100, self.helpbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Quit")
         elif newstate == STATE_PLAYING:
             # Message
-            self.startmessage = Textbox([self.width/2, self.height/2],"Here come the reviews!")
+            playablearea = self.GetPlayableRect()
+            self.startmessage = Textbox([playablearea.centerx, playablearea.centery],"Here come the reviews!")
             
             self.LoadSprites()
             # Scoring
@@ -307,7 +301,13 @@ class Game:
             self.month = 0
             self.ChangeChapter()
         elif newstate == STATE_GAMEOVER:
-            self.menubutton = Button(Rect(self.width/2 - 100, self.height/4 - 30, 200, 60), "Main Menu")
+            # Messages
+            self.gameovermsg = Textbox([self.width/2, self.height/8],"GAME OVER", self.headerfont)
+            self.winmsg = Textbox([self.width/2, self.height/4],"THE RAGE SAVED THE CAGE! WELL DONE!", self.headerfont)
+            self.losemsg = Textbox([self.width/2, self.height/4],"THE RAGE COULD NOT SAVE THE CAGE!", self.headerfont)
+                
+            # Buttons
+            self.menubutton = Button(Rect(self.width/2 - 100, self.height/2 - 30, 200, 60), "Main Menu")
             self.retrybutton = Button(Rect(self.width/2 - 100, self.menubutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Retry")
         elif newstate == STATE_HELP:
             self.returnbutton = Button(Rect(self.width/2 - 100, self.height - 75, 200, 60), "Return to Menu")
