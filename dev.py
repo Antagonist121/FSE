@@ -21,7 +21,7 @@ HEIGHT = 480
 STATE_MAINMENU  = 0
 STATE_PLAYING   = 1
 STATE_GAMEOVER  = 2
-
+STATE_HELP      = 3
 
 
 class Game:
@@ -39,6 +39,7 @@ class Game:
         # Fonts
         self.headerfont = pygame.font.Font(None, 36)
         self.gamestatfont = pygame.font.Font(None, 20)
+        self.helpfont = pygame.font.Font(None, 24)
 
         # Inteface
         self.interface = Interface(self.screen)
@@ -67,11 +68,15 @@ class Game:
                         if(self.startbutton.MouseOver(mousepos)):
                             # Change the game state to playing and update our curtime
                             curtime = self.ChangeState(STATE_PLAYING)
-
+                        if(self.helpbutton.MouseOver(mousepos)):
+                            curtime = self.ChangeState(STATE_HELP)
                         # Have they clicked on the quit button
                         elif(self.quitbutton.MouseOver(mousepos)):
                             # Stop the loop
                             running = False
+                    elif(self.GetState() == STATE_HELP):
+                        if self.returnbutton.MouseOver(mousepos):
+                            curtime = self.ChangeState(STATE_MAINMENU)
                     elif(self.GetState() == STATE_PLAYING and (curtime - self.cage.lastrage) > self.cage.ragedelay):
                         # Shooting mechanism
                         self.rage_sprites.add(Rage(self.cage, 0, mousepos))
@@ -207,13 +212,52 @@ class Game:
                 else:
                     self.startbutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.startbutton)
-
+                if(self.helpbutton.MouseOver(mousepos)):
+                    self.helpbutton.bgcol = (150,0,0)
+                else:
+                    self.helpbutton.bgcol = (255,0,0)
+                self.interface.RenderButton(self.helpbutton)
                 if(self.quitbutton.MouseOver(mousepos)):
                     self.quitbutton.bgcol = (150,0,0)
                 else:
                     self.quitbutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.quitbutton)
+            elif self.GetState() == STATE_HELP:
+                self.ClearScreen()
 
+                text = self.headerfont.render("How to Play", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/2, centery = self.height/16)
+                self.screen.blit(text,textpos)
+
+                text = self.helpfont.render("You are Cage, and you have released a new film", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/3, centery = self.height/6)
+                self.screen.blit(text,textpos)
+
+                self.helpimage = pygame.image.load('data/images/cage.png')
+                self.screen.blit(self.helpimage,(self.width/1.5,self.height/7.5))
+                
+
+                text = self.helpfont.render ("Cage refuses to listen to any bad reviews, and must use his Rage to", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/2, centery = self.height/3.5)
+                self.screen.blit(text,textpos)
+
+                text = self.helpfont.render ("destroy the bad reviews before they can use their Logic against him.", 1, (255,0,0))
+                textpos = text.get_rect(centerx = self.width/2, centery = self.height/3)
+                self.screen.blit(text,textpos)
+
+                self.helpimage = pygame.image.load ('data/images/cageangry-small.png')
+                self.screen.blit(self.helpimage,(self.width/3.5, self.height/2.5))
+
+                self.helpimage = pygame.image.load ('data/images/enemy.png')
+                self.screen.blit(self.helpimage,(self.width/1.5, self.height/2.5))
+                
+                if(self.quitbutton.MouseOver(mousepos)):
+                    self.returnbutton.bgcol = (150,0,0)
+                else:
+                    self.returnbutton.bgcol = (255,0,0)
+                self.interface.RenderButton(self.returnbutton)
+                
+                
             elif self.GetState() == STATE_PLAYING:
                 self.ClearScreen()
 
@@ -292,7 +336,8 @@ class Game:
     def ChangeState(self, newstate):
         if newstate == STATE_MAINMENU:
             self.startbutton = Button(Rect(self.width/2 - 100, self.height/2 - 30, 200, 60), "Start")
-            self.quitbutton = Button(Rect(self.width/2 - 100, self.startbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Quit")
+            self.helpbutton = Button(Rect(self.width/2 - 100, self.startbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "How to Play")
+            self.quitbutton = Button(Rect(self.width/2 - 100, self.helpbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Quit")
         elif newstate == STATE_PLAYING:
             self.LoadSprites()
             # Scoring
@@ -316,6 +361,8 @@ class Game:
         elif newstate == STATE_GAMEOVER:
             self.menubutton = Button(Rect(self.width/2 - 100, self.height/4 - 30, 200, 60), "Main Menu")
             self.retrybutton = Button(Rect(self.width/2 - 100, self.menubutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Retry")
+        elif newstate == STATE_HELP:
+            self.returnbutton = Button(Rect(self.width/2 - 100, self.height - 125, 200, 60), "Return to Menu")
         else:
             return self.gametick()
 
@@ -405,16 +452,16 @@ class Cage(pygame.sprite.Sprite):
         ymove = 0
         
         # Previously pressed keys still held down
-        if(keys_pressed[pygame.K_RIGHT]):
+        if(keys_pressed[pygame.K_RIGHT] or keys_pressed[pygame.K_d]):
             if(self.rect.right + self.movement <= playablerect.right):
                xmove += self.movement
-        if(keys_pressed[pygame.K_LEFT]):
+        if(keys_pressed[pygame.K_LEFT] or keys_pressed[pygame.K_a]):
             if(self.rect.left - self.movement >= playablerect.left):
                 xmove = -self.movement
-        if(keys_pressed[pygame.K_UP]):
+        if(keys_pressed[pygame.K_UP] or keys_pressed[pygame.K_w]):
             if(self.rect.top - self.movement >= playablerect.top):
                 ymove = -self.movement
-        if(keys_pressed[pygame.K_DOWN]):
+        if(keys_pressed[pygame.K_DOWN] or keys_pressed[pygame.K_s]):
             if(self.rect.bottom + self.movement <= playablerect.bottom):
                ymove += self.movement
         #If the player is trying to move in x and y, move diagonally
