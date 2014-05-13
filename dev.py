@@ -23,6 +23,7 @@ STATE_PLAYING   = 1
 STATE_GAMEOVER  = 2
 
 
+
 class Game:
     def __init__(self, width=WIDTH, height=HEIGHT):
         pygame.init()
@@ -66,6 +67,7 @@ class Game:
                         if(self.startbutton.MouseOver(mousepos)):
                             # Change the game state to playing and update our curtime
                             curtime = self.ChangeState(STATE_PLAYING)
+
                         # Have they clicked on the quit button
                         elif(self.quitbutton.MouseOver(mousepos)):
                             # Stop the loop
@@ -205,11 +207,13 @@ class Game:
                 else:
                     self.startbutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.startbutton)
+
                 if(self.quitbutton.MouseOver(mousepos)):
                     self.quitbutton.bgcol = (150,0,0)
                 else:
                     self.quitbutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.quitbutton)
+
             elif self.GetState() == STATE_PLAYING:
                 self.ClearScreen()
 
