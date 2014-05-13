@@ -6,7 +6,6 @@ import os, sys, random, math
 import pygame
 from pygame import *
 from ctypes import windll
-os.environ['SDL_VIDEO_CENTERED'] = '1'
 
 
 if not pygame.font:
@@ -120,7 +119,6 @@ class Game:
                 self.cage.move(key.get_pressed(), playablearea)
                 self.enemy_sprites.update(self)
                 self.rage_sprites.update(self.rage_sprites, playablearea)
-                self.superenemy_sprites.update(self.cage)
 
                 # Collision detection
                 self.CollisionDetection()
@@ -232,7 +230,6 @@ class Game:
                 self.screen.blit(self.filmbg,(0,0))
                 # Sprites
                 self.enemy_sprites.draw(self.screen)
-                self.superenemy_sprites.draw(self.screen)
                 self.cage_sprite.draw(self.screen)
                 self.rage_sprites.draw(self.screen)
                 self.powerup_sprites.draw(self.screen)
@@ -240,9 +237,7 @@ class Game:
                 self.RenderPlayingInterface()
                 # Starting message
                 if (self.gametick <= 2000):
-                    text = self.headerfont.render("Here come the reviews!", 1, (255,0,0))
-                    textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
-                    self.screen.blit(text,textpos)
+                    self.interface.RenderTextbox(self.startmessage)
             elif self.GetState() == STATE_GAMEOVER:
                 if (self.gameWon):
                     text = self.headerfont.render("THE RAGE SAVED THE CAGE! WELL DONE!", 1, (255,255,0))
@@ -289,6 +284,9 @@ class Game:
             self.helpbutton = Button(Rect(self.width/2 - 100, self.startbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "How to Play")
             self.quitbutton = Button(Rect(self.width/2 - 100, self.helpbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Quit")
         elif newstate == STATE_PLAYING:
+            # Message
+            self.startmessage = Textbox([self.width/2, self.height/2],"Here come the reviews!")
+            
             self.LoadSprites()
             # Scoring
             self.score = 0
@@ -299,7 +297,8 @@ class Game:
             self.lastpoweruptime = 0
 
             # Enemies
-            self.LoadEnemyTypes()
+            self.defaultenemy = EnemyType()
+            self.enemytypes = LoadEnemyTypes()
 
             # Chapters
             self.filmarray = ["National Treasure", "National Treasure 2", "Ghost Rider", "Ghost Rider 2", "Wicker Man", "Bangkok Dangerous", "Vampire's Kiss", "Season of the Witch", "Face/Off", "Sorcerer's Apprectice", "Gone in Sixty Seconds", "Con Air"]
@@ -318,17 +317,10 @@ class Game:
         # Now that we've initialized the state, we can update the game's state variable and reset the game tick
         self.gamestate = newstate
         self.gametickstart()
-        
-    def LoadEnemyTypes(self):
-        self.defaultenemy = EnemyType()
-        self.enemytypes = {}
-        self.enemytypes['Tiny Enemy'] = EnemyType('Tiny Enemy', 1, 0, 'data/images/enemy-tiny.png')
-        self.enemytypes['Youtube Reviewer'] = EnemyType('Youtube Reviewer', 0.5, 15000, 'data/images/youtube-logo.png', YoutubeReviewerInit, YoutubeReviewerUpdate)
-        
+    
     def LoadSprites(self):
         self.cage = Cage(self.GetPlayableRect())
         self.cage_sprite = pygame.sprite.RenderPlain((self.cage))
-        self.superenemy_sprites = pygame.sprite.Group()
         self.enemy_sprites = pygame.sprite.Group()
         self.rage_sprites = pygame.sprite.Group()
         self.powerup_sprites = pygame.sprite.Group()
@@ -415,9 +407,13 @@ class Game:
             self.ChangeState(STATE_GAMEOVER)
             
         # Enemy collides with bullet
-        collidelist = pygame.sprite.groupcollide(self.enemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
+        collidelist = pygame.sprite.groupcollide(self.enemy_sprites,self.rage_sprites,False,self.cage.gothroughpowerup)
         if collidelist:
-            self.score += (5*len(collidelist))
+            for enemy in collidelist:
+                enemy.health -= 1
+                self.score += 5
+                if(not enemy.health):
+                    self.enemy_sprites.remove(enemy)
             if self.cage.rageexplode:
                 self.cage.explosionactivate = True
                 for enemy, ragelist in collidelist.items():
@@ -427,12 +423,6 @@ class Game:
                 self.cage.explosiondelay = self.gametick
         if ((self.gametick - self.cage.explosiondelay) > 1000 and self.cage.explosionactivate):
             self.cage.manualpowerend = True
-
-            
-        # Super Enemy collides with bullet
-        collidelist = pygame.sprite.groupcollide(self.superenemy_sprites,self.rage_sprites,True,self.cage.gothroughpowerup)
-        if collidelist:
-            self.score += (10*len(collidelist))
             
         # Cage Collides with powerup
         collidelist = pygame.sprite.spritecollide(self.cage,self.powerup_sprites,True)
