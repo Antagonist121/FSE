@@ -15,8 +15,8 @@ if not pygame.mixer:
     print 'Warning, sound disabled'
     sys.exit(1)
 # Our files
-from interface import *
-from enemy import *
+from lib.interface import *
+from lib.enemy import *
 
 # Globals
 FPS = 60
@@ -36,7 +36,7 @@ class Game:
         self.width = width
         self.height = height
         self.screen = pygame.display.set_mode((self.width, self.height))
-        SetWindowPos(pygame.display.get_wm_info()['window'], -1, 0, 0, 0, 0, 0x0001)
+        SetWindowPos(pygame.display.get_wm_info()['window'], -1, 200, 200, 0, 0, 0x0001)
         
         
         # Background
@@ -322,16 +322,16 @@ class Game:
             
             # Messages
             # Game over
-            text = self.headerfont.render("GAME OVER!", 1, (255,255,255))
-            textpos = text.get_rect(centerx=playablearea.width/2,centery=playablearea.height/8)
-            self.gameovermsg = Textbox(text, textpos)
+            gameovertext = self.headerfont.render("GAME OVER!", 1, (255,255,255))
+            gameovertextpos = gameovertext.get_rect(centerx=playablearea.width/2,centery=playablearea.height/4)
+            self.gameovermsg = Textbox(gameovertext, gameovertextpos)
             # Win message
             text = self.headerfont.render("THE RAGE SAVED THE CAGE! WELL DONE!", 1, (255,255,255))
-            textpos = text.get_rect(centerx=playablearea.width/2,centery=playablearea.height/4)
+            textpos = text.get_rect(centerx=playablearea.width/2,centery=gameovertextpos.bottom+self.interface.padding*10+self.interface.bordersize*2)
             self.winmsg = Textbox(text, textpos)
             # Lose message
             text = self.headerfont.render("THE RAGE COULD NOT SAVE THE CAGE!", 1, (255,255,255))
-            textpos = text.get_rect(centerx=playablearea.width/2,centery=playablearea.height/4)
+            textpos = text.get_rect(centerx=playablearea.width/2,centery=gameovertextpos.bottom+self.interface.padding*10+self.interface.bordersize*2)
             self.losemsg = Textbox(text, textpos)
                 
             # Buttons
@@ -371,7 +371,7 @@ class Game:
 
     # Returns a rect containing the playable area of the screen
     def GetPlayableRect(self):
-        return Rect(0, self.tophudheight, self.width, self.height-self.bottomhudheight)
+        return Rect(0, self.tophudheight, self.width, self.height-self.bottomhudheight-self.tophudheight)
     
     def ClearScreen(self):
         self.screen.blit(self.background, (0, 0))
