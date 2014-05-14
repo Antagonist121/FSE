@@ -1,11 +1,12 @@
 # REMOVE DEBUG code (marked with DEBUG)
 #!/usr/bin/env python
 # Core stuff
-import sys, random, math
+import os, sys, random, math
 # Pygame
 import pygame
 from pygame import *
 from ctypes import windll
+
 
 if not pygame.font:
     print 'Warning, fonts disabled'
@@ -35,7 +36,7 @@ class Game:
         self.width = width
         self.height = height
         self.screen = pygame.display.set_mode((self.width, self.height))
-        SetWindowPos(pygame.display.get_wm_info()['window'], -1, 200, 200, 0, 0, 0x0001)
+        SetWindowPos(pygame.display.get_wm_info()['window'], -1, 0, 0, 0, 0, 0x0001)
         
         # Background
         self.background = pygame.Surface(self.screen.get_size())
@@ -50,6 +51,10 @@ class Game:
         # Inteface
         self.interface = Interface(self.screen)
         self.bottomhudheight = 45
+        self.tophudheight = 0
+
+        # Highscores
+        self.highscore = 0
         
         # Start main menu
         self.ChangeState(STATE_MAINMENU)
@@ -117,7 +122,6 @@ class Game:
                 self.cage.move(key.get_pressed(), playablearea)
                 self.enemy_sprites.update(self)
                 self.rage_sprites.update(self.rage_sprites, playablearea)
-                
 
                 # Collision detection
                 self.CollisionDetection()
@@ -225,30 +229,25 @@ class Game:
                 
             elif self.GetState() == STATE_PLAYING:
                 self.ClearScreen()
-
                 self.screen.blit(self.filmbg,(0,0))
+                
                 # Sprites
                 self.enemy_sprites.draw(self.screen)
                 self.cage_sprite.draw(self.screen)
                 self.rage_sprites.draw(self.screen)
                 self.powerup_sprites.draw(self.screen)
+                
                 # Render the text (score, month, film) and the charge meter
                 self.RenderPlayingInterface()
+                
                 # Starting message
                 if (self.gametick <= 2000):
                     self.interface.RenderTextbox(self.startmessage)
             elif self.GetState() == STATE_GAMEOVER:
-                if (self.gameWon):
-                    text = self.headerfont.render("THE RAGE SAVED THE CAGE! WELL DONE!", 1, (255,255,0))
-                    textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
-                    self.screen.blit(text,textpos)
-                else:
-                    text = self.headerfont.render("THE RAGE COULD NOT SAVE THE CAGE!", 1, (255,255,0))
-                    textpos = text.get_rect(centerx=self.width/2,centery=self.height/2)
-                    self.screen.blit(text,textpos)
-                text = self.headerfont.render("Game Over.", 1, (255,255,0))
-                textpos = text.get_rect(centerx=self.width/2,centery=(self.height/2+36))
-                self.screen.blit(text,textpos)
+                # Messages- Game Over, win/lose message
+                self.interface.RenderTextbox(self.gameovermsg)
+                if (self.gameWon): self.interface.RenderTextbox(self.winmsg)
+                else: self.interface.RenderTextbox(self.losemsg)
 
                 # Buttons
                 # Menu
@@ -283,10 +282,25 @@ class Game:
             self.helpbutton = Button(Rect(self.width/2 - 100, self.startbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "How to Play")
             self.quitbutton = Button(Rect(self.width/2 - 100, self.helpbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Quit")
         elif newstate == STATE_PLAYING:
-            # Message
-            self.startmessage = Textbox([self.width/2, self.height/2],"Here come the reviews!")
+            playablearea = self.GetPlayableRect()
             
+            # Messages
+            # Intro message
+            introtext = self.headerfont.render("Here come the reviews!", 1, (255,255,255))
+            introtextpos = introtext.get_rect(centerx=playablearea.width/2,centery=playablearea.height/6)
+            self.startmessage = Textbox(introtext,introtextpos)
+            # Score
+            scoretext = self.interface.textboxfont.render("Score: 0", 1, (255,255,255))
+            scoretextpos = scoretext.get_rect(left=5, top=5)
+            self.scoremessage = Textbox(scoretext,scoretextpos)
+            # Highscore
+            highscoretext = self.interface.textboxfont.render("Highscore: {:d}".format(self.highscore), 1, (255,255,255))
+            highscoretextpos = highscoretext.get_rect(left=5, top=scoretextpos.bottom+self.interface.padding*3+self.interface.bordersize*2)
+            self.highscoremessage = Textbox(highscoretext,highscoretextpos)
+
+            # Sprites
             self.LoadSprites()
+            
             # Scoring
             self.score = 0
             self.lasttimescore = 0
@@ -306,8 +320,28 @@ class Game:
             self.month = 0
             self.ChangeChapter()
         elif newstate == STATE_GAMEOVER:
-            self.menubutton = Button(Rect(self.width/2 - 100, self.height/4 - 30, 200, 60), "Main Menu")
+            playablearea = self.GetPlayableRect()
+            
+            # Messages
+            # Game over
+            text = self.headerfont.render("GAME OVER!", 1, (255,255,255))
+            textpos = text.get_rect(centerx=playablearea.width/2,centery=playablearea.height/8)
+            self.gameovermsg = Textbox(text, textpos)
+            # Win message
+            text = self.headerfont.render("THE RAGE SAVED THE CAGE! WELL DONE!", 1, (255,255,255))
+            textpos = text.get_rect(centerx=playablearea.width/2,centery=playablearea.height/4)
+            self.winmsg = Textbox(text, textpos)
+            # Lose message
+            text = self.headerfont.render("THE RAGE COULD NOT SAVE THE CAGE!", 1, (255,255,255))
+            textpos = text.get_rect(centerx=playablearea.width/2,centery=playablearea.height/4)
+            self.losemsg = Textbox(text, textpos)
+                
+            # Buttons
+            self.menubutton = Button(Rect(self.width/2 - 100, self.height/2 - 30, 200, 60), "Main Menu")
             self.retrybutton = Button(Rect(self.width/2 - 100, self.menubutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Retry")
+
+            # Highscore?
+            if(self.score > self.highscore):self.highscore = self.score
         elif newstate == STATE_HELP:
             self.returnbutton = Button(Rect(self.width/2 - 100, self.height - 75, 200, 60), "Return to Menu")
         else:
@@ -316,7 +350,7 @@ class Game:
         # Now that we've initialized the state, we can update the game's state variable and reset the game tick
         self.gamestate = newstate
         self.gametickstart()
-        
+    
     def LoadSprites(self):
         self.cage = Cage(self.GetPlayableRect())
         self.cage_sprite = pygame.sprite.RenderPlain((self.cage))
@@ -339,44 +373,56 @@ class Game:
 
     # Returns a rect containing the playable area of the screen
     def GetPlayableRect(self):
-        return Rect(0, 0, self.width, self.height-self.bottomhudheight)
+        return Rect(0, self.tophudheight, self.width, self.height-self.bottomhudheight)
     
     def ClearScreen(self):
         self.screen.blit(self.background, (0, 0))
     def RenderPlayingInterface(self):
         # "Rage" charge meter
-        ragerect = Rect(self.width - 105, self.height - 35, min((float(self.gametick-self.cage.lastrage)/self.cage.ragedelay) * 100, 100), 30)
+        ragepct = min((float(self.gametick-self.cage.lastrage)/self.cage.ragedelay) * 100, 100)
+        ragerect = Rect(self.width - 105, self.height - 35, ragepct, 30)
 
-        # Interface background
-        interfaceborder = Rect(0, self.height - (ragerect.height + 15), self.width, ragerect.height + 15)
-        interfacebackground = Rect(0, self.height - (ragerect.height + 10), self.width, ragerect.height + 10)
-        
-        # Text
-        # Score
+        # Score and highscore
         score = self.gamestatfont.render("Score: {:d}".format(self.score), 1, (255,0,0))
         scorepos = score.get_rect(left=5,top=5)
+        highscore = self.gamestatfont.render("Highscore: {:d}".format(self.highscore), 1, (255,0,0))
+        highscorepos = highscore.get_rect(right=self.width - 5, top=5)
+        self.tophudheight = max(scorepos.bottom, highscorepos.bottom) + 10
+
+        # Interface background
+        botinterfaceborder = Rect(0, self.height - (ragerect.height + 15), self.width, ragerect.height + 15)
+        botinterfacebackground = Rect(0, self.height - (ragerect.height + 10), self.width, ragerect.height + 10)
+        topinterfaceborder = Rect(0, 0, self.width, self.tophudheight)
+        topinterfacebackground = Rect(0, 0, self.width, self.tophudheight - 5)
+        
+        # Text
         # Month
         month = self.gamestatfont.render ("Month: " + str(self.month), 1, (255,0,0))
-        monthpos = month.get_rect(left=5, centery=interfacebackground.centery)
+        monthpos = month.get_rect(left=5, centery=botinterfacebackground.centery)
         # Film
         film = self.gamestatfont.render (self.filmtitle, 1, (255,0,0))
-        filmpos = film.get_rect(left=monthpos.right + 35, centery=interfacebackground.centery)
+        filmpos = film.get_rect(left=monthpos.right + 35, centery=botinterfacebackground.centery)
         # Powerup
         powerup = self.gamestatfont.render ("Current Powerup: " + self.cage.currentdescription, 1, (255,0,0))
-        poweruppos = powerup.get_rect(left = filmpos.right + 35, centery = interfacebackground.centery)
+        poweruppos = powerup.get_rect(left = filmpos.right + 35, centery = botinterfacebackground.centery)
         # Rage message on rage charge meter
         rage = self.gamestatfont.render("Rage", 1, (0,0,0))
         ragepos = rage.get_rect(centerx=ragerect.centerx, centery=ragerect.centery)
     
         # Render interface
-        pygame.draw.rect(self.screen, (255,0,0), interfaceborder)
-        pygame.draw.rect(self.screen, (0,0,0), interfacebackground)
+        # Backgrounds & borders
+        pygame.draw.rect(self.screen, (255,0,0), botinterfaceborder)
+        pygame.draw.rect(self.screen, (0,0,0), botinterfacebackground)
+        pygame.draw.rect(self.screen, (255,0,0), topinterfaceborder)
+        pygame.draw.rect(self.screen, (0,0,0), topinterfacebackground)
+        if(ragepct < 100):pygame.draw.rect(self.screen, (255,0,0), ragerect)
+        else:pygame.draw.rect(self.screen, (0,255,0), ragerect)
         self.screen.blit(rage, ragepos)
-        self.screen.blit(score, scorepos)
         self.screen.blit(month, monthpos)
         self.screen.blit(film, filmpos)
         self.screen.blit(powerup, poweruppos)
-        pygame.draw.rect(self.screen, (0,255,0), ragerect)
+        self.screen.blit(score, scorepos)
+        self.screen.blit(highscore, highscorepos)
     def ChangeChapter(self):
         self.curchapter = random.randint(0, (self.filmarray.__len__() - 1))
         self.filmtitle = self.filmarray[self.curchapter]
@@ -410,13 +456,13 @@ class Game:
         if collidelist:
             for enemy in collidelist:
                 enemy.health -= 1
-                self.score += (5*len(collidelist))
+                self.score += 5
                 if(not enemy.health):
                     self.enemy_sprites.remove(enemy)
             if self.cage.rageexplode:
                 self.cage.explosionactivate = True
                 for enemy, ragelist in collidelist.items():
-                    self.rage_sprites.add(Rage(self.cage, enemy, mousepos))
+                    self.rage_sprites.add(Rage(self.cage, enemy, [enemy.rect.centerx, enemy.rect.centery]))
                 self.cage.rageexplode = False
                 self.cage.gothroughpowerup = False
                 self.cage.explosiondelay = self.gametick
@@ -485,16 +531,16 @@ class Cage(pygame.sprite.Sprite):
         ymove = 0
         
         # Previously pressed keys still held down
-        if(keys_pressed[pygame.K_RIGHT]):
+        if(keys_pressed[pygame.K_RIGHT] or keys_pressed[pygame.K_d]):
             if(self.rect.right + self.movement <= playablerect.right):
                xmove += self.movement
-        if(keys_pressed[pygame.K_LEFT]):
+        if(keys_pressed[pygame.K_LEFT] or keys_pressed[pygame.K_a]):
             if(self.rect.left - self.movement >= playablerect.left):
                 xmove = -self.movement
-        if(keys_pressed[pygame.K_UP]):
+        if(keys_pressed[pygame.K_UP] or keys_pressed[pygame.K_w]):
             if(self.rect.top - self.movement >= playablerect.top):
                 ymove = -self.movement
-        if(keys_pressed[pygame.K_DOWN]):
+        if(keys_pressed[pygame.K_DOWN] or keys_pressed[pygame.K_s]):
             if(self.rect.bottom + self.movement <= playablerect.bottom):
                ymove += self.movement
         #If the player is trying to move in x and y, move diagonally
@@ -508,6 +554,7 @@ class Rage(pygame.sprite.Sprite):
     def __init__(self, cage, enemy, mousepos):
         # Create rage
         pygame.sprite.Sprite.__init__(self)
+        self.movement = 5
         if(cage.rageamount == 1):
             if(cage.poweruptype == 0):
                 self.base_image = pygame.image.load('data/images/rage-small.png')
@@ -530,16 +577,16 @@ class Rage(pygame.sprite.Sprite):
                 
             elif(cage.poweruptype == 6):
                 self.base_image = pygame.image.load('data/images/bangkokrage.png')
+                self.movement = 10
                 
             elif(cage.poweruptype == 7):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/vampirekissrage.png')
                 
             elif(cage.poweruptype == 8):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/seasonofthewitchrage.png')
                 
             elif(cage.poweruptype == 9):
-                self.base_image = pygame.image.load('data/images/rage-tiny.png')
-                cage.rageamount = 6
+                self.base_image = pygame.image.load('data/images/faceoffrage.png')
                 
             elif(cage.poweruptype == 10 and cage.explosionactivate):
                 self.base_image = pygame.image.load('data/images/explosion.png')
@@ -548,12 +595,14 @@ class Rage(pygame.sprite.Sprite):
                 self.base_image = pygame.image.load('data/images/magicorb.png')
             
             elif(cage.poweruptype == 11):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/rage-tiny.png')
+                cage.rageamount = 6
                 
             elif(cage.poweruptype == 12):
-                self.base_image = pygame.image.load('data/images/rage-small.png')
+                self.base_image = pygame.image.load('data/images/gonein60powerup.png')
+                self.movement = 15
         else:
-            if(cage.poweruptype == 9):
+            if(cage.poweruptype == 11):
                 self.base_image = pygame.image.load('data/images/rage-tiny.png')
             if(cage.poweruptype == 5):
                 self.base_image = pygame.image.load('data/images/bee.png')
@@ -572,7 +621,7 @@ class Rage(pygame.sprite.Sprite):
         # Movement
         self.accuratex = self.rect.x
         self.accuratey = self.rect.y
-        self.movement = 5
+        
         DIFFX = self.rect.x - mousepos[0]
         DIFFY = self.rect.y - mousepos[1]
         DISTANCE = math.sqrt((DIFFY**2)+(DIFFX**2))
@@ -583,10 +632,13 @@ class Rage(pygame.sprite.Sprite):
             if(cage.rageamount > 6 and cage.rageamount <= 10):
                 DIFFX += ((cage.rageamount - 7) * (DIFFX * 0.25))
                 DIFFY += ((cage.rageamount - 7) * (DIFFY * 0.25))
-        self.movex = self.movement * (DIFFX / DISTANCE)
-        self.movey = self.movement * (DIFFY / DISTANCE)
-
-        if(cage.poweruptype == 9 or cage.poweruptype == 5):
+        if(DISTANCE):
+            self.movex = self.movement * (DIFFX / DISTANCE)
+            self.movey = self.movement * (DIFFY / DISTANCE)
+        else:
+            self.movex = 0
+            self.movey = 0
+        if(cage.poweruptype == 11 or cage.poweruptype == 5):
             if(cage.rageamount > 2 and cage.rageamount <= 4):
                 if(self.movey < 0 and self.movex < 0):
                     self.movex -= ((cage.rageamount - 1) * 0.3)
@@ -607,24 +659,24 @@ class Rage(pygame.sprite.Sprite):
                 else:
                     self.movex -= ((cage.rageamount - 3) * 0.3)
                     self.movey -= ((cage.rageamount - 3) * 0.5)
-        if(cage.poweruptype == 10 and cage.explosionactivate):
-            self.movex = 0
-            self.movey = 0
         
         # Rotation
-        if(DIFFY/DISTANCE > 1):
-            rotate = math.acos(1)
-        elif(DIFFY/DISTANCE < -1):
-            rotate = math.acos(-1)
+        if DISTANCE:
+            if(DIFFY/DISTANCE > 1):
+                rotate = math.acos(1)
+            elif(DIFFY/DISTANCE < -1):
+                rotate = math.acos(-1)
+            else:
+                rotate = math.acos((DIFFY/DISTANCE))
+            rotate = (rotate / math.pi) * 180.0
         else:
-            rotate = math.acos((DIFFY/DISTANCE))
-        rotate = (rotate / math.pi) * 180.0
+            rotate = 0
         if(DIFFX > 0):
             if(DIFFY <= 0):
                 rotate = (180 - rotate) + 180
             else:
                 rotate = 360 - rotate
-        if(cage.poweruptype == 9):
+        if(cage.poweruptype == 11):
             if(cage.rageamount > 2 and cage.rageamount <= 4):
                 if(self.movex > 0 and self.movey < 0):
                     rotate += ((cage.rageamount-3) * 10)
@@ -694,22 +746,23 @@ class PowerUp(pygame.sprite.Sprite):
                 self.poweruptype = 5
                 cage.powerdescription = "BEES"
             elif(main.filmtitle == "Bangkok Dangerous"):
-                self.image = pygame.image.load('data/images/bangkokpowerup.png')
+                self.image = pygame.image.load('data/images/bangkokpowerup2.png')
                 self.ragedelay = 300
                 self.poweruptype = 6
                 cage.powerdescription = "Uzi"
             elif(main.filmtitle == "Vampire's Kiss"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/vampirekisspowerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 7
                 cage.powerdescription = "Vampire Teeth"
             elif(main.filmtitle == "Season of the Witch"):
-                self.image = pygame.image.load('data/images/powerup.png')
-                self.ragedelay = 1000
+                self.image = pygame.image.load('data/images/seasonofthewitchpowerup.png')
+                self.gothroughpowerup = False
+                self.ragedelay = 1500
                 self.poweruptype = 8
-                cage.powerdescription = "Witch Sword"
+                cage.powerdescription = "Cage's Sword"
             elif(main.filmtitle == "Face/Off"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/faceoffpowerup.png')
                 self.ragedelay = 1500
                 self.poweruptype = 9
                 cage.powerdescription = "Travolta's Face"
@@ -721,12 +774,12 @@ class PowerUp(pygame.sprite.Sprite):
                 self.poweruptype = 10
                 cage.powerdescription = "Explosive Orb"
             elif(main.filmtitle == "Con Air"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/conairpowerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 11
                 cage.powerdescription = "Cage's Long Hair"
             elif(main.filmtitle == "Gone in Sixty Seconds"):
-                self.image = pygame.image.load('data/images/powerup.png')
+                self.image = pygame.image.load('data/images/gonein60powerup.png')
                 self.ragedelay = 1000
                 self.poweruptype = 12
                 cage.powerdescription = "Mustang"
