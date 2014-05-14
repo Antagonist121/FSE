@@ -137,15 +137,15 @@ class Game:
                         self.ChangeState(STATE_GAMEOVER)
                     else:
                         self.ChangeChapter()
+                        
             
             # Render stuff
 
             if self.GetState() == STATE_MAINMENU:
                 self.ClearScreen()
                 # Title
-                text = self.headerfont.render("Nick Cage Film Battle Royale", 1, (255, 0, 0))
-                textpos = text.get_rect(centerx=self.width/2, centery=self.height/8)
-                self.screen.blit(text, textpos)
+                self.mainbackground = pygame.image.load('data/images/gamebackgroundupdate.png')
+                self.screen.blit(self.mainbackground, (0,0))
 
                 # Start button
                 if(self.startbutton.MouseOver(mousepos)):
@@ -163,6 +163,7 @@ class Game:
                 else:
                     self.quitbutton.bgcol = (255,0,0)
                 self.interface.RenderButton(self.quitbutton)
+
                 
             elif self.GetState() == STATE_HELP:
                 self.ClearScreen()
@@ -217,7 +218,7 @@ class Game:
                 textpos = text.get_rect(centerx = self.width/2, centery = self.height/1.25)
                 self.screen.blit(text,textpos)
                 
-                if(self.quitbutton.MouseOver(mousepos)):
+                if(self.returnbutton.MouseOver(mousepos)):
                     self.returnbutton.bgcol = (150,0,0)
                 else:
                     self.returnbutton.bgcol = (255,0,0)
@@ -273,14 +274,13 @@ class Game:
     """
     def ChangeState(self, newstate):
         if newstate == STATE_MAINMENU:
-            self.startbutton = Button(Rect(self.width/2 - 100, self.height/2 - 30, 200, 60), "Start")
-            self.helpbutton = Button(Rect(self.width/2 - 100, self.startbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "How to Play")
-            self.quitbutton = Button(Rect(self.width/2 - 100, self.helpbutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Quit")
+            self.startbutton = Button(Rect(10 , self.height - 80 , 200, 60), "Start")
+            self.helpbutton = Button(Rect(self.startbutton.rect.right + 10, self.height-80, 200, 60), "How to Play")
+            self.quitbutton = Button(Rect(self.helpbutton.rect.right + 10, self.height-80, 200, 60), "Quit")
         elif newstate == STATE_PLAYING:
             # Message
             playablearea = self.GetPlayableRect()
             self.startmessage = Textbox([playablearea.centerx, playablearea.centery],"Here come the reviews!")
-            
             self.LoadSprites()
             # Scoring
             self.score = 0
@@ -385,6 +385,8 @@ class Game:
         del self.filmarray[self.curchapter]
         del self.filmbgarray[self.curchapter]
         self.month += 1
+        if (self.month > 1):
+            self.score += 50
     def Spawner(self, playablearea=False):
         if(not playablearea):playablearea = self.GetPlayableRect()
         # Enemy Creation
