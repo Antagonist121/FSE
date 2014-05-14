@@ -23,27 +23,19 @@ class Interface:
         self.screen.blit(text,textpos)
         
     def RenderTextbox(self, textbox):
-        # Load font
-        font = textbox.font
-        if(not textbox.font):
-            font = self.textboxfont
-        # Text
-        text = font.render(textbox.message, 1, textbox.textcol)
-        textpos = text.get_rect(centerx=textbox.pos[0],centery=textbox.pos[1])
-
         # Border
-        boxsize = [textpos.width + self.padding * 2 + self.bordersize * 2, textpos.height + self.padding * 2 + self.bordersize * 2]
-        borderrect = Rect(textbox.pos[0]-boxsize[0]/2, textbox.pos[1]-boxsize[1]/2, boxsize[0], boxsize[1])
+        boxsize = [textbox.textpos.width + self.padding * 2 + self.bordersize * 2, textbox.textpos.height + self.padding * 2 + self.bordersize * 2]
+        borderrect = Rect(textbox.textpos.left - self.padding - self.bordersize, textbox.textpos.top - self.padding - self.bordersize, boxsize[0], boxsize[1])
 
         # Background
         boxsize[0] -= self.bordersize * 2
         boxsize[1] -= self.bordersize * 2
-        backgroundrect = Rect(textbox.pos[0]-boxsize[0]/2, textbox.pos[1]-boxsize[1]/2, boxsize[0], boxsize[1])
+        backgroundrect = Rect(textbox.textpos.left - self.padding, textbox.textpos.top - self.padding, boxsize[0], boxsize[1])
 
         # Render
         pygame.draw.rect(self.screen, textbox.bordercol, borderrect)
         pygame.draw.rect(self.screen, textbox.bgcol, backgroundrect)
-        self.screen.blit(text, textpos)
+        self.screen.blit(textbox.text, textbox.textpos)
 
 # Button class- requires a rectangle for the button and a message
 class Button:
@@ -56,12 +48,16 @@ class Button:
         if(mousepos[1] < self.rect.top or mousepos[1] > self.rect.bottom):return False
         return True
 
-# Textbox class- requires a position for the center and a message. Doesn't support new lines
+# Textbox class
+# Requires a rendered text object.
+# Optionally, you can provide a rect for the text's position for greater control (e.g. centering)
 class Textbox:
-    def __init__(self, pos, message, font=False):
-        self.pos = pos
-        self.message = message
-        self.font = font
+    def __init__(self, text, textpos=False):
+        if(not textpos):textpos = text.get_rect()
+        # Text
+        self.text = text
+        self.textpos = textpos
+        # Colour
         self.bgcol = (0,0,0)
         self.bordercol = (255,0,0)
         self.textcol = (255,255,255)

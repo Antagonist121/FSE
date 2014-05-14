@@ -52,6 +52,10 @@ class Game:
         # Inteface
         self.interface = Interface(self.screen)
         self.bottomhudheight = 45
+        self.tophudheight = 0
+
+        # Highscores
+        self.highscore = 0
         
         # Start main menu
         self.ChangeState(STATE_MAINMENU)
@@ -278,9 +282,22 @@ class Game:
             self.helpbutton = Button(Rect(self.startbutton.rect.right + 10, self.height-80, 200, 60), "How to Play")
             self.quitbutton = Button(Rect(self.helpbutton.rect.right + 10, self.height-80, 200, 60), "Quit")
         elif newstate == STATE_PLAYING:
-            # Message
             playablearea = self.GetPlayableRect()
-            self.startmessage = Textbox([playablearea.centerx, playablearea.centery],"Here come the reviews!")
+            
+            # Message
+            introtext = self.headerfont.render("Here come the reviews!", 1, (255,255,255))
+            introtextpos = introtext.get_rect(centerx=playablearea.width/2,centery=playablearea.height/6)
+            self.startmessage = Textbox(introtext,introtextpos)
+            # Score
+            scoretext = self.interface.textboxfont.render("Score: 0", 1, (255,255,255))
+            scoretextpos = scoretext.get_rect(left=5, top=5)
+            self.scoremessage = Textbox(scoretext,scoretextpos)
+            # Highscore
+            highscoretext = self.interface.textboxfont.render("Highscore: {:d}".format(self.highscore), 1, (255,255,255))
+            highscoretextpos = highscoretext.get_rect(left=5, top=scoretextpos.bottom+self.interface.padding*3+self.interface.bordersize*2)
+            self.highscoremessage = Textbox(highscoretext,highscoretextpos)
+
+            # Sprites
             self.LoadSprites()
             # Scoring
             self.score = 0
@@ -301,14 +318,28 @@ class Game:
             self.month = 0
             self.ChangeChapter()
         elif newstate == STATE_GAMEOVER:
+            playablearea = self.GetPlayableRect()
+            
             # Messages
-            self.gameovermsg = Textbox([self.width/2, self.height/8],"GAME OVER", self.headerfont)
-            self.winmsg = Textbox([self.width/2, self.height/4],"THE RAGE SAVED THE CAGE! WELL DONE!", self.headerfont)
-            self.losemsg = Textbox([self.width/2, self.height/4],"THE RAGE COULD NOT SAVE THE CAGE!", self.headerfont)
+            # Game over
+            text = self.headerfont.render("GAME OVER!", 1, (255,255,255))
+            textpos = text.get_rect(centerx=playablearea.width/2,centery=playablearea.height/8)
+            self.gameovermsg = Textbox(text, textpos)
+            # Win message
+            text = self.headerfont.render("THE RAGE SAVED THE CAGE! WELL DONE!", 1, (255,255,255))
+            textpos = text.get_rect(centerx=playablearea.width/2,centery=playablearea.height/4)
+            self.winmsg = Textbox(text, textpos)
+            # Lose message
+            text = self.headerfont.render("THE RAGE COULD NOT SAVE THE CAGE!", 1, (255,255,255))
+            textpos = text.get_rect(centerx=playablearea.width/2,centery=playablearea.height/4)
+            self.losemsg = Textbox(text, textpos)
                 
             # Buttons
             self.menubutton = Button(Rect(self.width/2 - 100, self.height/2 - 30, 200, 60), "Main Menu")
             self.retrybutton = Button(Rect(self.width/2 - 100, self.menubutton.rect.bottom + self.interface.buttonpadding, 200, 60), "Retry")
+
+            # Highscore?
+            if(self.score > self.highscore):self.highscore = self.score
         elif newstate == STATE_HELP:
             self.returnbutton = Button(Rect(self.width/2 - 100, self.height - 75, 200, 60), "Return to Menu")
         else:
@@ -340,17 +371,27 @@ class Game:
 
     # Returns a rect containing the playable area of the screen
     def GetPlayableRect(self):
-        return Rect(0, 0, self.width, self.height-self.bottomhudheight)
+        return Rect(0, self.tophudheight, self.width, self.height-self.bottomhudheight)
     
     def ClearScreen(self):
         self.screen.blit(self.background, (0, 0))
     def RenderPlayingInterface(self):
         # "Rage" charge meter
-        ragerect = Rect(self.width - 105, self.height - 35, min((float(self.gametick-self.cage.lastrage)/self.cage.ragedelay) * 100, 100), 30)
+        ragepct = min((float(self.gametick-self.cage.lastrage)/self.cage.ragedelay) * 100, 100)
+        ragerect = Rect(self.width - 105, self.height - 35, ragepct, 30)
+
+        # Score and highscore
+        score = self.gamestatfont.render("Score: {:d}".format(self.score), 1, (255,0,0))
+        scorepos = score.get_rect(left=5,top=5)
+        highscore = self.gamestatfont.render("Highscore: {:d}".format(self.highscore), 1, (255,0,0))
+        highscorepos = highscore.get_rect(right=self.width - 5, top=5)
+        self.tophudheight = max(scorepos.bottom, highscorepos.bottom) + 10
 
         # Interface background
-        interfaceborder = Rect(0, self.height - (ragerect.height + 15), self.width, ragerect.height + 15)
-        interfacebackground = Rect(0, self.height - (ragerect.height + 10), self.width, ragerect.height + 10)
+        botinterfaceborder = Rect(0, self.height - (ragerect.height + 15), self.width, ragerect.height + 15)
+        botinterfacebackground = Rect(0, self.height - (ragerect.height + 10), self.width, ragerect.height + 10)
+        topinterfaceborder = Rect(0, 0, self.width, self.tophudheight)
+        topinterfacebackground = Rect(0, 0, self.width, self.tophudheight - 5)
         
         # Text
         # Score
@@ -358,26 +399,31 @@ class Game:
         scorepos = score.get_rect(left=5,top=5)
         # Month
         month = self.gamestatfont.render ("Month: " + str(self.month), 1, (255,0,0))
-        monthpos = month.get_rect(left=5, centery=interfacebackground.centery)
+        monthpos = month.get_rect(left=5, centery=botinterfacebackground.centery)
         # Film
         film = self.gamestatfont.render (self.filmtitle, 1, (255,0,0))
-        filmpos = film.get_rect(left=monthpos.right + 35, centery=interfacebackground.centery)
+        filmpos = film.get_rect(left=monthpos.right + 35, centery=botinterfacebackground.centery)
         # Powerup
         powerup = self.gamestatfont.render ("Current Powerup: " + self.cage.currentdescription, 1, (255,0,0))
-        poweruppos = powerup.get_rect(left = filmpos.right + 35, centery = interfacebackground.centery)
+        poweruppos = powerup.get_rect(left = filmpos.right + 35, centery = botinterfacebackground.centery)
         # Rage message on rage charge meter
         rage = self.gamestatfont.render("Rage", 1, (0,0,0))
         ragepos = rage.get_rect(centerx=ragerect.centerx, centery=ragerect.centery)
     
         # Render interface
-        pygame.draw.rect(self.screen, (255,0,0), interfaceborder)
-        pygame.draw.rect(self.screen, (0,0,0), interfacebackground)
+        # Backgrounds & borders
+        pygame.draw.rect(self.screen, (255,0,0), botinterfaceborder)
+        pygame.draw.rect(self.screen, (0,0,0), botinterfacebackground)
+        pygame.draw.rect(self.screen, (255,0,0), topinterfaceborder)
+        pygame.draw.rect(self.screen, (0,0,0), topinterfacebackground)
+        if(ragepct < 100):pygame.draw.rect(self.screen, (255,0,0), ragerect)
+        else:pygame.draw.rect(self.screen, (0,255,0), ragerect)
         self.screen.blit(rage, ragepos)
-        self.screen.blit(score, scorepos)
         self.screen.blit(month, monthpos)
         self.screen.blit(film, filmpos)
         self.screen.blit(powerup, poweruppos)
-        pygame.draw.rect(self.screen, (0,255,0), ragerect)
+        self.screen.blit(score, scorepos)
+        self.screen.blit(highscore, highscorepos)
     def ChangeChapter(self):
         self.curchapter = random.randint(0, (self.filmarray.__len__() - 1))
         self.filmtitle = self.filmarray[self.curchapter]
