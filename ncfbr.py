@@ -1,4 +1,3 @@
-# REMOVE DEBUG code (marked with DEBUG)
 #!/usr/bin/env python
 # Core stuff
 import os, sys, random, math
